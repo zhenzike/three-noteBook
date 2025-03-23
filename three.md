@@ -32,6 +32,28 @@ mesh.visible =false;//隐藏一个网格模型,visible的默认值是true
 group.visible =false;//隐藏一个包含多个模型的组对象group
 ```
 
+## 雾化Fog
+
+```js
+Fog( color : lnteger, near : Float, far : Float )
+//name : String 对象的名称，可选、不必唯一。默认值是一个空字符串。
+//color : Color 雾的颜色。比如说，如果将其设置为黑色，远处的物体将被渲染成黑色。
+//near : Float 开始应用雾的最小距离。距离小于活动摄像机"near"个单位的物体将不会被雾所影响。默认值是1。
+//far : Float 结束计算、应用雾的最大距离，距离大于活动摄像机"far"个单位的物体将不会被雾所影响。默认值是1000。
+```
+
+```js
+//设置雾化效果，雾的颜色和背景颜色相近，这样远处网格线和背景颜色融为一体
+scene.fog = new THREE.Fog(0x005577,-100,1000);
+```
+
+**注意**：==如果仅仅设置雾化依旧无法体现远处效果，还需要同步设置和雾化颜色适配的渲染器的背景颜色==.
+
+```js
+//设置three.js背景颜色和雾化颜色相配
+renderer.setClearColor(0x005577,1);
+```
+
 # 摄像机(Camera)
 
 ## 透视摄像机(PerspectiveCamera)
@@ -200,7 +222,7 @@ window.onresize = function( {
 camera.up.set(0,-1,0)
 
 //
-camera.up.set(O,0,1);//改变up后需要重新执行lookAt
+camera.up.set(0,0,1);//改变up后需要重新执行lookAt
 camera.lookAt(0,0,0);//执行lookAt重新计算相机姿态
 
 ```
@@ -1907,8 +1929,6 @@ const ambientFolder = gui.addFolder('环境光');
 ambientFolder.add(ambient, 'intensity' ,0,2);
 ```
 
-
-
 # 组与层级模型
 
 ## 组对象Group
@@ -2116,7 +2136,7 @@ three.js项目开发中,把一个背景透明的. png图像作为平面矩形网
 
 整体思路:创建一个矩形平面,设置颜色贴图.map ,注意选择背景透明的.png图像作为颜色贴图,同时材质设置transparent: true,这样png图片背景完全透明的部分不显示。
 
-### UV动画offset
+### 动画offset
 
 可以通过纹理对象的偏移属性.offset给实现—个UV动画效果
 
@@ -2339,11 +2359,11 @@ glb:
 
 一般三维建模软件的目录树,都有模型的名称,three.js加载外部模型,外部模型的名称体现为three.js对象的.name属性,
 
-three.js可以通过`.get0bjectByName()`方法,把模型节点的名字.name作为改函数参数,快速查找某个模型对象。
+three.js可以通过`.getObjectByName()`方法,把模型节点的名字.name作为改函数参数,快速查找某个模型对象。
 
 ```js
 const nameNode = gltf.scene.getObjectByName("1号楼");
-nameNode.material.color. set(0xff0000);//改变1号楼Mesh材质颜色
+nameNode.material.color.set(0xff0000);//改变1号楼Mesh材质颜色
 ```
 
 ### 遍历模型修改材质
@@ -2992,9 +3012,9 @@ composer.addPass (renderPass);
 import{ OutlinePass} from 'three/addons/postprocessing/OutlinePass.js';
 //创建OutlinePass通道
 // OutlinePass第一个参数v2的尺寸和canvas画布保持一致
-const v2 = new TIIREE.Vector2(window.innerWidth, window.innerWidth);
+const v2 = new THREE.Vector2(window.innerWidth, window.innerWidth);
 // const v2 = new THREE.Vector2(800,600);
-const outlinePass = new OutlinePass(v2, scene,camera) ;
+const outline = new OutlinePass(v2, scene,camera) ;
 ```
 
 ```js
@@ -3004,18 +3024,18 @@ OutlinePass.selectedObjects = [mesh];//[meshl, mesh2, group]
 
 //设置模型边缘高亮描边颜色
 //模型边缘高亮边框颜色,默认白色
-outlinePass.visibleEdgeColor.set(Oxffff00);
+outlinePass.visibleEdgeColor.set(0xffff00);
 
 //描边厚度
-outlinePass.edgeThickness = 4;
+outline.edgeThickness = 4;
 
 //高亮描边的发光强度,默认值3
-outlinePass.edgeStrength = 6;
+outline.edgeStrength = 6;
 
 //描边的闪烁频率,默认0不闪烁。
-outlinePass.pulsePeriod = 2;
+outline.pulsePeriod = 2;
 
-composer.addPass (OutlinePass);
+composer.addPass(outline);
 //渲染循环中后处理EffectComposer执行.render会调用webgl渲染器执行.render(),也就是说renderer.render(scene,camcra)不用再执行。
 function render( ){
     composer.render();//composer.render中会执行renderer.render
@@ -3248,6 +3268,57 @@ for (let i = 0; i < count; i++){
 npm install --save @types/three
 ```
 
+## three加载资源文件
+
+- 当你尝试从 `src` 目录加载图片时，Vite 会将图片路径解析为一个模块路径。如果你直接使用相对路径（如 `../imgs/h.png`），Three.js 的 `TextureLoader` 无法正确解析这个路径，因为它期望的是一个 URL 或绝对路径。
+- 由于 Vite 对 `src` 目录下的文件进行了处理，图片的实际路径可能会发生变化（例如，文件名被哈希化），导致加载失败。
+
+### 解决方法
+
+#### 方法 1：将图片放在 `public` 目录下
+
+- 将图片文件放在 `public` 目录中，例如 `public/imgs/h.png`。
+
+- 然后使用绝对路径加载图片：
+
+  ```
+  const texture = new THREE.TextureLoader().load('/imgs/h.png');
+  ```
+
+- **优点**：简单直接，适合不需要频繁修改的静态资源。
+
+- **缺点**：`public` 目录下的文件不会被 Vite 处理，无法享受 Vite 的优化（如哈希文件名、压缩等）
+
+#### 方法 2：使用 Vite 的 `import` 导入图片
+
+- 将图片放在 `src` 目录下，例如 `src/assets/imgs/h.png`。
+
+- 使用 `import` 导入图片，并将其作为 URL 传递给 `TextureLoader`：
+
+  ```js
+  import hImage from '@/assets/imgs/h.png'; // 使用别名 @ 指向 src 目录
+  
+  const texture = new THREE.TextureLoader().load(hImage);
+  ```
+
+- **优点**：图片会被 Vite 处理（如压缩、哈希文件名），适合需要优化的项目。
+
+- **缺点**：需要显式导入图片，稍微增加代码量。
+
+#### 方法 3：使用 Vite 的 `new URL` 动态导入
+
+- 如果你需要动态加载图片，可以使用 Vite 的 `new URL` 语法：
+
+  ```js
+  const texture = new THREE.TextureLoader().load(
+      new URL('../assets/imgs/h.png', import.meta.url).href
+  );
+  ```
+
+- **优点**：支持动态路径，图片会被 Vite 处理。
+
+- **缺点**：语法稍微复杂。
+
 # 射线
 
 ## 屏幕坐标转标准设备坐标
@@ -3317,7 +3388,7 @@ addEventListener('click' , function(event){
 
 ```js
 //创建射线对象Ray
-const ray = new THREE.Ray )
+const ray = new THREE.Ray ()
 
 //设置射线Ray的起点.origin在3D空间中的坐标,可以用一个三维向量Vector3的x、 y、z分量表示。
 //起点. origin属性值是三维向量Vector3,也可以用.set()方法设置。
@@ -3440,12 +3511,18 @@ if (intersects.length > 0){
 
    - 把**鼠标单击位置坐标和相机**作为`.setFromCamera()`方法的参数,`.setFromCamera()`就会计算射线投射器Raycaster的射线属性.ray,
 
-   - 形象点说就是在点击位置创建一条射线,用来选中拾取模型对象。
+   - `.setFromCamera()`==形象点说就是在点击位置创建一条射线,用来选中拾取模型对象==。
+
+   - `setFromCamera` 方法用于根据相机和屏幕坐标设置 `Raycaster` 的射线。具体来说：
+
+     - 它将屏幕坐标（通常是鼠标位置）转换为世界空间中的一条射线。
+     - 这条射线的起点是相机的位置，方向是从相机指向屏幕坐标对应的世界空间中的点。
 
    - ```js
      //创建一个射线投射器`Raycaster
      const raycaster = new THREE.Raycaster() ;
-     //.setFromCamera()计算射线投射器`Raycaster `的射线属性. ray//形象点说就是在点击位置创建一条射线,用来选中拾取模型对象
+     //.setFromCamera()计算射线投射器`Raycaster `的射线属性. ray
+     //形象点说就是在点击位置创建一条射线,用来选中拾取模型对象
      raycaster.setFromCamera (new THREE.Vector2(x,y),camera);
      ```
 
@@ -3466,10 +3543,10 @@ if (intersects.length > 0){
 执行. intersect0bjects (cunchu.children)进行射线拾取计算,返回结果并不是设备A或设备B父对象,而是他们的某个子对象Mesh。
 
 ```js
-const cunchu = model. get0bjectByName('存储罐');
+const cunchu = model.get0bjectByName('存储罐');
 //射线拾取模型对象(包含多个Mesh)
 //射线交叉计算拾取模型
-const intersects = raycaster. intersect0bjects(cunchu. children);
+const intersects = raycaster.intersect0bjects(cunchu. children);
 ```
 
 ```js
@@ -3478,7 +3555,7 @@ const intersects = raycaster. intersect0bjects(cunchu. children);
 ```
 
 ```js
-const cunchu = model.get0bjectByName(’存储罐’);
+const cunchu = model.get0bjectByName('存储罐');
 //射线拾取模型对象(包含多个Mesh)
 //可以给待选对象的所有子孙后代Mesh,设置一个祖先属性ancestors,值指向祖先
 for (let i= 0; i< cunchu.children.length; i++){
@@ -3517,7 +3594,7 @@ addEventListener('click', function (event) {
 
 ```
 
-# 标注库CSS2D
+# 标注库CSS2/3D
 
 通过`CSS2DRenderer. js`可以把**HTML**元素作为标签标注三维场景。
 
@@ -3572,22 +3649,22 @@ HTML元素标签< div id="tag"</ div>外面div父元素遮挡了Canvas画布鼠�
 
 ```js
 //使用.style. pointerEvents = none 
-css2Renderer. domElement.style. pointerEvents = 'none';
+css2Renderer.domElement.style.pointerEvents = 'none';
 ```
 
 ## 标注画布动态宽高
 
 ```js
-window. onresize = function ){
+window. onresize = function(){
     const width = window.innerWidth;
     const height = window.innerHeight;
     // cnavas画布宽高度重新设置
     renderer.setSize(width, height);
     
     //HTML标签css2Renderer. domElement尺寸重新设置
-    css2Renderer. setSize(width, height);
+    css2Renderer.setSize(width, height);
     
-    camera. aspect = width / height;
+    camera.aspect = width / height;
     camera.updateProjectionMatrix ();
 };
 ```
@@ -3596,17 +3673,17 @@ window. onresize = function ){
 
 ```js
 const tag =new CSS2DObject(div);//标签tag作为mesh子对象
-mesh. add(tag)//将其直接设置为需要标注的网格对象的子对象,就不用设置位置了
+//由于CSS2DObject的职责是渲染，所以会强制显示DOM哪怕display为none
+mesh.add(tag)//将其直接设置为需要标注的网格对象的子对象,就不用设置位置了
 ```
 
 ### 标注模型几何体的某个顶点
 
 ```js
 //标签模型对象作为需要标注mesh的子对象,然后获取mesh几何体某个顶点的坐标,作为标签模型对象局部坐标.position。
-const pos = geometry.attributes.position; )
+const pos = geometry.attributes.position
 //获取几何体顶点1的xyz坐标,设置标签局部坐标. position属性
-tag.position. set (pos. getX (0), pos.getY(O) , pos. getZ(0));
-
+tag.position.set (pos.getX (0), pos.getY(0),pos.getZ(0));
 ```
 
 ### 标注圆锥顶部
@@ -3624,7 +3701,7 @@ geometry.translate(0,40, 0);
 loader. load("../工厂.glb", function (gltf){
     const tag = new CSS2DObject(div);
     // obj是建模软件中创建的一个空对象
-    const obj = gltf.scene. getObjectByName('设备B标注');
+    const obj = gltf.scene.getObjectByName('设备B标注');
     // const obj = gltf. scene.getObjectByName(停车场标注');
     //tag会标注在空对象obj对应的位置
     obj.add(tag);
@@ -3646,6 +3723,11 @@ CSS3渲染器`CSS3DRenderer`和`CSS2渲染器CSS2DRenderer`整体使用流程基
 
 - 比如CSS3渲染的标签会跟着场景相机同步缩放,
 - 而CSS2渲染的标签默认保持自身像素值。
+- ```
+  import{CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+  ```
+
+  
 
 ### 背面禁止渲染
 
@@ -3656,11 +3738,11 @@ CSS3渲染器`CSS3DRenderer`和`CSS2渲染器CSS2DRenderer`整体使用流程基
 ## 精灵模型CSS3DSprite
 
 ```js
-import{ CSS3DSprite } from 'three/addons/renderers/CSS3DRenderer.js';
+import{CSS3DRenderer, CSS3DSprite } from 'three/addons/renderers/CSS3DRenderer.js';
 ```
 
 ```js
-const div = document. getElementById('tag');
+const div = document.getElementById('tag');
 //HTML元素转化为threejs的CSS3精灵模型CSS3DSprite
 const tag = new CSS3DSprite(div);
 //标签tag作为mesh子对象,默认标注在模型局部坐标系坐标原点
@@ -5939,3 +6021,1220 @@ for (let i = 0; i < pos.count; i = +3) {
 ```
 
 注意：另一方面就是网格模型的位置、角度、缩放属性，也会对转化代码也会有影响，后面遇到具体问题具体分析
+
+# shader基础
+
+## 内置变量
+
+不管是JavaScript语言，还是着色器语言GLSL ES，你想使用一个变量，都需要先声明。
+
+```javascript
+float a = 2.0;
+float b = 4.0;
+float c = a+b;
+```
+
+所谓**内置变量**就是着色器语言GLSL ES默认提供的变量，不需要声明，就可以使用。GLSL ES内置变量很多，下面介绍几个下节课会用到的。
+
+- `gl_PointSize`：点渲染像素大小，数据类型浮点数`float`
+- `gl_Position`：顶点坐标，数据类型四维向量`vec4`
+- `gl_FragColor`：像素颜色，数据类型四维向量`vec4`
+
+```javascript
+// 赋值浮点数
+gl_PointSize = 20.0;
+```
+
+vec4前面三个参数表示xyz坐标，第四个参数按照GLSL ES语法习惯需要设置为1.0
+
+```javascript
+// 赋值四维向量，表示xyz坐标是原点
+gl_Position = vec4(0.0,0.0,0.0,1.0);
+```
+
+vec4前面三个参数是颜色RGB值，第四个参数是透明度值
+
+```javascript
+// 赋值四维向量，表示红色不透明
+gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+```
+
+## ShaderMaterial着色器材质
+
+Shader材质类`ShaderMaterial`，单词`Shader`就是着色器的意思，`ShaderMaterial`是通过==着色器GLSL ES语言==自定义材质效果，比如颜色
+
+```js
+const geometry = new THREE.PlaneGeometry(100, 50);
+const material = new THREE.ShaderMaterial({
+    vertexShader: '...',// 顶点着色器
+    fragmentShader: '...',// 片元着色器
+});
+const mesh = new THREE.Mesh(geometry, material);
+```
+
+## vertexShader顶点着色器
+
+`ShaderMaterial`顶点着色器属性`vertexShader`的值是字符串，字符串的内容是**着色器GLSL ES语言**写的代码。
+
+```js
+const vertexShader = `
+    // 写顶点着色器的代码 
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+```
+
+### 设置顶点着色器主函数
+
+按照**着色器GLSL ES语言**的语法，给顶点着色器代码设置一个主函数`main`,函数`main`无返回值，前面加上关键字`void`即可。
+
+```js
+const vertexShader = `
+void main(){
+    // 写顶点着色器的代码  
+}
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+```
+
+### 内置变量gl_Position
+
+`gl_Position`是**着色器GLSL ES语言**的内置变量，所谓内置变量，就是不用声明，就可以在代码中使用。
+
+着色器内置变量`gl_Position`数据类型是四维向量`vec4`，可以用函数`vec4()`创建,`vec4()`有四个参数，每个参数都是浮点数`float`
+
+`gl_Position`的值,前面三个参数表示xyz坐标，第四个参数一般固定设置为1.0。
+
+```js
+const vertexShader = `
+void main(){
+    gl_Position = vec4( x, y ,z ,1.0 );
+}
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+
+//不过一般不会通过gl_Position直接写顶点坐标，而是从几何体BufferGeometry获取顶点坐标数据，下面给大家讲解具体实现方式
+const vertexShader = `
+void main(){
+    gl_Position = vec4(从几何体获取顶点xyz坐标,1.0 );
+}
+`
+```
+
+### GLSL ES语法：attribute关键字
+
+`attribute`是**着色器GLSL ES语言**的一个关键字，按照GLSL ES的语法规定，`attribute`关键字一般用来声明与顶点数据有关变量。
+
+`attribute vec3 pos;`:
+
+- 表示用`attribute`声明了一个变量`pos`，`attribute`的作用就是指明`pos`是顶点相关变量，
+- `pos`的数类型是三维向量`vec3`，三维向量`vec3`意味着`pos`表示的顶点数据有x、y、z三个分量。
+
+比如可以用`pos`表示顶点的位置数据xyz(当然也能表示其它类型顶点数据,遇到再讲解)。
+
+```js
+const vertexShader = `
+attribute vec3 pos;//注意在主函数外面
+void main(){
+    gl_Position = vec4(...,1.0 );
+}
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+```
+
+假设`attribute`声明的变量`pos`表示顶点位置数据，你就可以赋值给`gl_Position`。
+
+执行`vec4(pos,1.0 )`,给三维向量`vec3`增加一个分量，就可以变成四维向量`vec4`(这是GLSL ES基本语法)。
+
+```js
+const vertexShader = `
+attribute vec3 pos;
+void main(){
+    gl_Position = vec4(pos,1.0 );
+}
+`
+```
+
+### 内置变量position
+
+调用shader材质`ShaderMaterial`的时候，threejs会在内部给你写的顶点着色器代码中，插入一行代码`attribute vec3 position;`，相当于帮你声明了一个变量`position`，`position`表示顶点的位置数据
+
+```js
+const vertexShader = `
+//attribute vec3 position;//默认提供,不用自己写
+void main(){
+    gl_Position = vec4(...,1.0 );
+}
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+```
+
+**作用**：
+
+几何体`geometry`与`ShaderMaterial`材质构成了一个mesh。也就是说材质`ShaderMaterial`关联了几何体`geometry`。
+
+```js
+const geometry = new THREE.PlaneGeometry(100, 50);
+console.log('顶点位置数据',geometry.attributes.position);
+const material = new THREE.ShaderMaterial();
+const mesh = new THREE.Mesh(geometry, material);
+```
+
+当你`ShaderMaterial`的时候，threejs会在内部把内置变量`position`与几何体的顶点位置数据`geometry.attributes.position`关联起来。
+
+这意味着，你在顶点着色器代码中访问变量`position`，就相当于获取了几何体顶点位置数据`geometry.attributes.position`
+
+==总而言之，你可以通过执行代码`gl_Position = vec4(position,1.0);`，把几何体的顶点位置数据`geometry.attributes.position`赋值给内置变量`gl_Position`==
+
+```js
+const vertexShader = `
+// attribute vec3 position;//默认提供,不用自己写
+void main(){
+    gl_Position = vec4(position,1.0 );
+}
+`
+const geometry = new THREE.PlaneGeometry(100, 50);
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+const mesh = new THREE.Mesh(geometry, material);
+```
+
+### GLSL ES语法:uniform关键字
+
+`uniform`是**着色器GLSL ES语言**语言的一个关键字，用来声明非顶点的变量(顶点变量用`atribute`声明)，比如模型的矩阵、光源位置等等。
+
+执行`uniform mat4 mT;`意味着，你通过关键字`uniform`声明一个变量`mT`，变量`mT`的数据类型是`mat4`(4x4的矩阵)。
+
+```js
+const vertexShader = `
+uniform mat4 mT;
+void main(){
+    gl_Position = mT * vec4(position,1.0 );
+}
+`
+```
+
+假设`mT`是一个平移矩阵，`mT * vec4(position,1.0 )`就可以平移几何体的顶点位置`position`。
+
+![image-20250322125452578](./three.assets/i关键字矩阵.png)
+
+**世界矩阵`.matrixWorld`**：
+
+当网格模型mesh自身或父对象平移、旋转、缩放时候，会改变自身的世界矩阵属性`mesh.matrixWorld`，换句话说，就是threejs内部会用世界矩阵`.matrixWorld`记录mesh的位置、尺寸和姿态角度变化。
+
+```js
+const mesh = new THREE.Mesh(geometry, material);
+mesh.position.set(100,0,0);//平移改变位置
+mesh.scale.set(3,3,3,);//缩放改变尺寸
+mesh.rotateY(Math.PI / 2);//旋转改变姿态角度
+```
+
+### 内置变量模型矩阵`modelMatrix`
+
+调用shader材质`ShaderMaterial`的时候，threejs会在内部给你写的顶点着色器代码中，插入一行代码`uniform mat4 modelMatrix;`，这意味着帮你声明了一个变量`modelMatrix`，`modelMatrix`在这里表示4x4的模型矩阵`mat4`。
+
+```js
+const vertexShader = `
+//uniform mat4 modelMatrix;//默认提供,不用自己写
+void main(){
+    gl_Position = vec4(...,1.0 );
+}
+`
+```
+
+使用`ShaderMaterial`的时候，threejs会自动获取模型世界矩阵`mesh.matrixWorld`的值，赋值给变量`modelMatrix`。
+
+==当平移、旋转、缩放mesh时候，会改变mesh的世界矩阵属性`.matrixWorld`，自然同步改变顶点着色器的模型矩阵`modelMatrix`变量==。
+
+```js
+const mesh = new THREE.Mesh(geometry, material);
+mesh.position.set(100,0,0);
+mesh.rotateY(Math.PI / 2);
+```
+
+==在顶点着色器代码中，你可以直接使用`modelMatrix`对几何体顶点位置坐标进行旋转、缩放、平移==。
+
+<p style="color:red;font-weight:800">当乘上这个模型矩阵modelMatrix后，相当于是将模型进行变化后的世界坐标计算</p>
+
+```js
+const vertexShader = `
+// uniform mat4 modelMatrix;//默认提供,不用自己写
+void main(){
+    // 模型矩阵 * 顶点坐标
+    gl_Position = modelMatrix * vec4(position,1.0 );
+}
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+});
+```
+
+### 内置变量:视图矩阵viewMatrix和投影矩阵projectionMatrix
+
+threejs内部还提供了两个内置的矩阵变量，
+
+- 相机的视图矩阵`viewMatrix`、
+  - `viewMatrix`的值来自相机视图矩阵属性`camera.matrixWorldInverse`
+- 投影矩阵`projectionMatrix`。
+  - `projectionMatrix`的值来自相机的投影矩阵属性`camera.projectionMatrix`。
+
+视图矩阵`viewMatrix`和投影矩阵`projectionMatrix`因为是内置变量，同样不用声明就可以直接使用。
+
+通过`viewMatrix`和`projectionMatrix`来表示相机对场景模型的旋转、缩放、平移变换。
+
+```js
+const vertexShader = `
+uniform mat4 modelMatrix;//默认提供,不用自己写
+uniform mat4 viewMatrix;//默认提供,不用自己写
+uniform mat4 projectionMatrix;//默认提供,不用自己写
+void main(){
+    // 投影矩阵 * 视图矩阵 * 模型矩阵 * 顶点坐标
+    // 注意矩阵乘法前后顺序不要写错
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0 );
+}
+`
+```
+
+**对比**：
+
+==比较下顶点着色器使用`modelMatrix`和不使用`modelMatrix`的差异==。
+
+```js
+// 投影矩阵 * 视图矩阵 * 模型矩阵 * 模型顶点坐标
+gl_Position = projectionMatrix*viewMatrix*vec4( position, 1.0 );
+mesh.position.x = 100;
+
+//发现没用使用modelMatrix，即使设置了mesh.position.x = 100;模型的位置依旧没有改变
+```
+
+
+
+### 内置变量：模型视图矩阵
+
+`ShaderMaterial`还提供了一个内置变量模型视图矩阵`modelViewMatrix`，就是视图矩阵`viewMatrix`和模型矩阵`modelMatrix`的乘积。
+
+```js
+const vertexShader = `
+//模型视图矩阵
+uniform mat4 modelViewMatrix;//默认提供,不用自己写
+void main(){
+    // 投影矩阵 * 模型视图矩阵 * 模型顶点坐标
+    gl_Position = projectionMatrix*modelViewMatrix*vec4( position, 1.0 );
+}
+`
+```
+
+
+
+## 片元着色器fragmentShader
+
+`gl_FragColor`和`gl_Position`一样是**着色器GLSL ES语言**的内置变量
+
+可以通过`gl_FragColor`设置`ShaderMaterial`相关模型的颜色值。
+
+着色器内置变量`gl_FragColor`数据类型是四维向量`vec4`，可以用函数`vec4()`创建,`vec4()`有四个参数，每个参数都是浮点数`float`
+
+`gl_FragColor`的值,前面三个参数表示像素的RGB值，第四个参数表示透明度，不透明就是1.0。
+
+```js
+// 片元着色器代码
+const fragmentShader = `
+void main() {
+    // RGB 0.0,1.0,1.0对应16进制颜色是0x00ffff
+    gl_FragColor = vec4(0.0,1.0,1.0,1.0);
+}
+`
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+    fragmentShader: fragmentShader,// 片元着色器
+});
+```
+
+## 半透明、双面显示
+
+`ShaderMaterial`和`MeshBasicMaterial`一样可以从父类`Material`继承`.side`属性，通过`.side`属性可以设置网格模型Mesh的两面如何显示。
+
+```js
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,
+    fragmentShader: fragmentShader,
+    side: THREE.DoubleSide//双面显示
+});
+```
+
+**半透明**：
+
+```js
+// 片元着色器代码
+const fragmentShader = `
+void main() {
+    //透明度1.0不透明
+    // gl_FragColor = vec4(0.0,1.0,1.0,1.0);
+    //透明度设置0.3，在0~1之间，半透明
+    gl_FragColor = vec4(0.0,1.0,1.0,0.3);
+}
+`
+const geometry = new THREE.PlaneGeometry(100, 50);
+const material = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,// 顶点着色器
+    fragmentShader: fragmentShader,// 片元着色器
+});
+```
+
+## uniform声明变量
+
+使用**着色器GLSL ES语言**的关键字`uniform`声明一个透明度变量`opacity`，`opacity`的数据类型设置为浮点数`float`，透明度变量名字你可以自定义，这里命名为`opacity`。
+
+```js
+// 片元着色器代码
+const fragmentShader = `
+uniform float opacity;//uniform声明透明度变量opacity
+void main() {
+    gl_FragColor = vec4(0.0,1.0,1.0,0.3);
+}
+`
+```
+
+### 给uniform变量传值
+
+`uniform`是**着色器GLSL ES语言**语言的一个关键字，用来声明非顶点的变量(顶点变量用`atribute`声明)，比如模型的矩阵、光源位置等等。
+
+通过`ShaderMaterial`参数的`uniforms`属性，可以给顶点或片元着色器中的`uniform`变量传值。
+
+比如下面片元着色器代码中，有一个uniform变量名称是`opacity`,
+
+`ShaderMaterial`的`uniforms`也有一个同名的属性`opacity`。
+
+这样的话，threejs会把`uniforms`中`opacity`的值传值片元着色器中同名uniform变量`opacity`
+
+```js
+const fragmentShader = `
+uniform float opacity;//uniform声明透明度变量opacity
+void main() {
+    gl_FragColor = vec4(0.0,1.0,1.0,0.3);
+}
+`
+const material = new THREE.ShaderMaterial({
+  uniforms: {
+    // 给透明度uniform变量opacity传值
+    opacity:{value:0.3}
+  },
+  vertexShader: vertexShader,// 顶点着色器
+  fragmentShader: fragmentShader,// 片元着色器
+  side: THREE.DoubleSide,
+  transparent: true,//允许透明
+});
+```
+
+**`uniform`变量赋值给gl_FragColor**:
+
+把uniform变量透明度`opacity`赋值给`gl_FragColor`，查看渲染效果(注意允许透明`transparent: true`)。
+
+```js
+// 片元着色器代码
+const fragmentShader = `
+uniform float opacity;//uniform声明变量opacity表示透明度
+uniform vec3 color;//声明一个颜色变量color
+void main() {
+    gl_FragColor = vec4(color,opacity);
+}
+`
+const geometry = new THREE.PlaneGeometry(100, 50);
+const material = new THREE.ShaderMaterial({
+  uniforms: {
+    // 给透明度uniform变量opacity传值
+    opacity: { value: 0.3 },
+    // 给uniform同名color变量传值
+    color:{value:new THREE.Color(0x00ffff)}
+  },
+  vertexShader: vertexShader,// 顶点着色器
+  fragmentShader: fragmentShader,// 片元着色器
+  side: THREE.DoubleSide,
+  transparent: true,//允许透明
+});
+
+material.uniforms.opacity.value = 0.2;
+material.uniforms.color.value.set(0xff0000);
+```
+
+## webGL渲染管线
+
+WebGL**渲染管线**想象为你显卡上的一条工厂流水线，工厂流水线有不同的工位，渲染管线也是如此，渲染管线上有多个不同的功能单元。
+
+![image-20250322161227263](./three.assets/webgl流程.png)
+
+### `ShaderMaterial`代码执行过程
+
+```js
+// 顶点着色器代码
+const vertexShader = `
+void main(){
+  // 投影矩阵 * 模型视图矩阵 * 模型顶点坐标
+  gl_Position = projectionMatrix*modelViewMatrix*vec4( position, 1.0 );
+}
+`
+// 片元着色器代码
+const fragmentShader = `
+void main() {
+    gl_FragColor = vec4(0.0,1.0,1.0,1.0);
+}
+`
+const material = new THREE.ShaderMaterial({
+  vertexShader: vertexShader,// 顶点着色器
+  fragmentShader: fragmentShader,// 片元着色器
+});
+const mesh = new THREE.Mesh(geometry, material);
+export default mesh;
+```
+
+当threejs通过WebGL渲染器`WebGLRenderer`渲染的时候，会做下面几件事：
+
+1. 从几何体`BufferGeometry`中获取顶点数据，把这些顶点数据存入显存上创建的**顶点缓冲区**。
+2. **顶点着色器**功能单元，会执行顶点着色器GLSL ES代码，对这些顶点进行几何体变换(旋转、缩放、平移)
+3. **片元着色器**功能单元，会执行片元着色器GLSL ES代码，设置颜色值。
+
+![image-20250322162203094](./three.assets/材质执行过程.png)
+
+### WebGL渲染管线执行过程
+
+![image-20250322162235482](./three.assets/渲染管线执行过程.png)
+
+1. 顶点缓冲区：顶点数据
+2. 顶点着色器：顶点变换
+3. 图元装配：比如渲染Mesh，Mesh几何体有多个三角形拼接，三个点为一组生成一个三角形
+4. 光栅化：比如在上一步三角形轮廓中，生成填充一个一个片元(像素)
+5. 片元着色器：给片元(像素)着色器
+
+### 顶点着色器：逐顶点概念
+
+![image-20250322162351492](./three.assets/遂顶点过程.png)
+
+矩阵对顶点进行几何体变换(平移、旋转、缩放)。
+
+这个过程是逐顶点操作的，把每个顶点数据想象成流水线上的一个一个零件，每个顶点经过顶点着色器功能单元时候，都会被顶点着色器处理，比如几何变换。
+
+### 图元装配、光栅化
+
+经过顶点着色器处理的顶点数据，会进入WebGL渲染管线下一个环节，也就是**图元装配**，比如渲染Mesh，**图元装配**时候，就会把三个点为一组生成一个三角形轮廓，接着就是**光栅化**，在上一步三角形轮廓内生成一个个片元，填充三角形轮廓，你可以暂时把片元理解为像素点。**光栅化**其实相当于在几何图形轮廓内，生成一个个密集排列的片元(像素)。
+
+![image-20250322162235482](./three.assets/渲染管线执行过程.png)
+
+## 片元屏幕坐标gl_FragCoord.xy
+
+`gl_FragCoord`和`gl_FragColor`、`gl_Position`一样，都是着色器语言GLSL ES的内置变量
+
+`gl_FragCoord`是一个四维向量`vec4`,这里只学习前面两个x、y分量`gl_FragCoord.xy`：
+
+- `gl_FragCoord.x`表示片元x坐标
+- `gl_FragCoord.y`表示片元的y坐标
+
+- 注意`gl_FragCoord.xy`的坐标系，不是平时threejs代码里面的xyz世界坐标系。
+
+- `gl_FragCoord.xy`坐标系的坐标原点，位于threejs canvas画布的左下角，x轴水平向右，y轴竖直向上，单位是像素px。
+
+### 根据片元屏幕坐标设置颜色
+
+canvas画布总宽800px的情况下，以中间作为分界点，左半部分片元红色，右半部分片元蓝色。
+
+```js
+//根据片元的x坐标，来设置片元的像素值
+if(gl_FragCoord.x < 400.0){
+  gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+}else {
+  gl_FragColor = vec4(0.0,0.0,1.0,1.0);
+}
+```
+
+根据片元x坐标，设置一个渐变色。
+
+![image-20250322222923589](./three.assets/画布渐变.png)
+
+```js
+// 片元沿着x方向渐变
+ gl_FragColor = vec4(gl_FragCoord.x/800.0*1.0,0.0,0.0,1.0);
+```
+
+### `discard`舍弃部分片元
+
+`discard`是着色器语言GLSL ES的一个关键字，用来控制片元着色器功能单元，舍弃某个片元。
+
+```js
+if(gl_FragCoord.x < 400.0){
+  // 符合条件片元保留，并设置颜色
+  gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+}else {
+  discard;//不符合条件片元直接舍弃掉
+}
+```
+
+## 顶点颜色varying插值计算
+
+![image-20250323092621544](./three.assets/插值计算.png)
+
+一条直线，把直线几何体两个端点，分别设置一个颜色，threejs会根据两端的颜色，在两点之间，按照距离远近插入不同颜色，就是所谓的颜色插值计算，距离某个点越近受某个点颜色影响越大。
+
+![image-20250323092719723](./three.assets/插值颜色.png)
+
+对于网格的三角形也是类似，三角形内部一个点的颜色，同时收到三个点的颜色影响，距离某个点越近，受影响越大
+
+### 设置顶点颜色
+
+`ShaderMaterial`对应的几何体设置顶点颜色数据。
+
+```js
+onst geometry = new THREE.BufferGeometry(); //创建一个几何体对象
+const vertices = new Float32Array([//类型数组创建顶点数据
+  0, 0, 0, //顶点1坐标
+  50, 0, 0, //顶点2坐标
+  0, 25, 0, //顶点3坐标
+]);
+geometry.attributes.position = new THREE.BufferAttribute(vertices, 3);
+
+const colors = new Float32Array([
+  1, 0, 0, //顶点1颜色 
+  0, 0, 1, //顶点2颜色
+  0, 1, 0, //顶点3颜色
+]);
+geometry.attributes.color = new THREE.BufferAttribute(colors, 3);
+```
+
+### 允许用顶点颜色渲染vertexColors:true
+
+```js
+const material = new THREE.ShaderMaterial({
+  vertexShader: vertexShader,
+  fragmentShader: fragmentShader,
+  vertexColors:true,//允许设置使用顶点颜色渲染
+});
+```
+
+### 内置变量color
+
+ShaderMaterial有一个内置变量`color`,表示顶点的颜色数据，数据来自定义的几何体顶点颜色属性`geometry.attributes.color`.
+
+```js
+// 顶点着色器代码
+const vertexShader = `
+// attribute vec3 color;//ShaderMaterial默认提供不用手写
+void main(){
+  // 投影矩阵 * 模型视图矩阵 * 模型顶点坐标
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+### 顶点颜色插值计算
+
+`color`变量表示插值之前的顶点颜色数据，`varying`关键字声明一个插值计算后的顶点颜色变量`vColor`。
+
+顶点数据插值计算语法：在顶点着色器主函数main里面，把顶点数据赋值给另一个varying声明的变量即可。
+
+```js
+// 顶点着色器代码
+const vertexShader = `
+// attribute vec3 color;//默认提供不用手写
+varying vec3 vColor;// varying关键字声明一个变量表示顶点颜色插值后的结果
+void main(){
+  vColor = color;// 顶点颜色数据进行插值计算
+  // 投影矩阵 * 模型视图矩阵 * 模型顶点坐标
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+## 顶点位置插值(实现渐变色)
+
+顶点颜色color数据可以通过顶点着色器插值计算，其实所有类型的顶点数据都可以，比如顶点位置数据`position`。
+
+只需要记住一个规律，任何类型的顶点数据，插值计算后，都会生成和所有片元一一对应的新数据
+
+```js
+// 顶点着色器代码
+const vertexShader = `
+varying vec3 vPosition;//表示顶点插值后位置数据，与片元数量相同，一一对应
+void main(){
+  vPosition = position;// 顶点位置坐标插值计算
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+//这里实现的是根据y坐标实现颜色的区别
+// 片元着色器代码，其中声明的变量名称要和vertexShader声明的相同
+const fragmentShader = `
+varying vec3 vPosition;//获取顶点着色器插值数据vPosition
+void main() {
+  // 根据vPosition位置控制片元颜色
+  if(vPosition.y < 0.0){
+    gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+  }else{
+    gl_FragColor = vec4(0.0,0.0,1.0,1.0);
+  }
+}
+`
+
+//这里实现的是根据y坐标实现颜色的渐变
+const geometry = new THREE.PlaneGeometry(100, 50);
+// 片元着色器代码
+const fragmentShader = `
+varying vec3 vPosition;
+void main() {
+    float per = (vPosition.y + 25.0)/50.0;
+    // 几何体顶点y坐标25，颜色值：1  0  0(红色)
+    // 几何体顶点y坐标-25，颜色值：0  1  0(绿色)
+    gl_FragColor = vec4(per,1.0-per,0.0,1.0);
+}
+`
+
+```
+
+### `positon`模型矩阵变换后插值
+
+```js
+let height=50;
+let changPosition=25
+const geometry = new THREE.PlaneGeometry(100, height);
+mesh.position.y += changPosition;
+// 顶点着色器代码
+const vertexShader = `
+varying vec3 vPosition;
+void main(){
+  // vPosition = position;
+  // 考虑mesh及其父对象旋转、缩放、平移的影响
+  vPosition = vec3(modelMatrix * vec4( position, 1.0 ));
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+
+// 片元着色器代码
+const fragmentShader = `
+varying vec3 vPosition;
+void main() {
+    float per = vPosition.y /50.0;
+    // Mesh y坐标50，颜色值：1  0  0(红色)
+    // Mesh y坐标0，颜色值：0  1  0(绿色)
+    gl_FragColor = vec4(per,1.0-per,0.0,1.0);
+}
+`
+
+// 片元着色器代码
+const fragmentShader = `
+varying vec3 vPosition;
+void main() {
+    float per = (vPosition.y+${height/2-changPosition} /50.0;
+    // Mesh y坐标50，颜色值：1  0  0(红色)
+    // Mesh y坐标0，颜色值：0  1  0(绿色)
+    gl_FragColor = vec4(per,1.0-per,0.0,1.0);
+}
+`
+```
+
+## 颜色贴图map(顶点UV坐标)
+
+### 顶点UV坐标内置变量uv
+
+顶点UV坐标`uv`，`uv`的数据来自几何体uv属性`geometry.attributes.uv`
+
+```js
+const vertexShader = `
+attribute vec2 uv;//默认提供,不用自己写
+void main(){
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+### 顶点UV坐标插值计算
+
+```js
+const vertexShader = `
+// attribute vec2 uv;//默认提供,不用自己写
+varying vec2 vUv;
+void main(){
+  vUv = uv;// UV坐标插值计算
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+### 声明颜色贴图变量sampler2D
+
+`uniform`关键字声明一个颜色贴图相关的变量`map`，纹理贴图对应数据类型需要用关键字`sampler2D`表示。
+
+```js
+// 片元着色器代码
+const fragmentShader = `
+uniform sampler2D map;//颜色贴图变量
+void main() {
+    gl_FragColor = vec4(0.0,1.0,1.0,1.0);
+}
+`
+const texture = new THREE.TextureLoader().load('./Earth.png');
+const material = new THREE.ShaderMaterial({
+  uniforms: {
+    // 给着色器中同名uniform变量map传值
+    map: {value: texture},
+  },
+  vertexShader: vertexShader,// 顶点着色器
+  fragmentShader: fragmentShader,// 片元着色器
+});
+
+```
+
+### 采样纹理赋值给gl_FragColor
+
+执行`varying vec2 vUv;`从顶点着色器获取插值后UV坐标`vUv`，
+
+然后执行`texture2D( map, vUv );`从颜色贴图上提取像素值，赋值给模型的片元`gl_FragColor`。
+
+```js
+const geometry = new THREE.BufferGeometry();
+const vertices = new Float32Array([
+    0, 0, 0, //顶点1坐标
+    160, 0, 0, //顶点2坐标
+    160, 80, 0, //顶点3坐标
+    0, 80, 0, //顶点4坐标
+]);
+geometry.attributes.position = new THREE.BufferAttribute(vertices, 3);;
+const indexes = new Uint16Array([
+    0, 1, 2, 0, 2, 3,// 矩形两个三角形对应顶点位置索引值
+])
+geometry.index = new THREE.BufferAttribute(indexes, 1); // 索引数据赋值给几何体的index属性
+/**纹理坐标0~1之间随意定义*/
+const uvs = new Float32Array([
+    0, 0, //图片左下角
+    1, 0, //图片右下角
+    1, 1, //图片右上角
+    0, 1, //图片左上角
+]);
+geometry.attributes.uv = new THREE.BufferAttribute(uvs, 2); //2个为一组,表示一个顶点的纹理坐标
+
+const vertexShader = `
+// attribute vec2 uv;//默认提供,不用自己写
+varying vec2 vUv;
+void main(){
+  vUv = uv;// UV坐标插值计算
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+// 片元着色器代码
+const fragmentShader = `
+uniform sampler2D map;//颜色贴图变量
+varying vec2 vUv;
+void main() {
+    // 通过几何体的UV坐标从颜色贴图获取像素值
+    gl_FragColor = texture2D( map, vUv );
+}
+`
+```
+
+## shader模仿点材质效果
+
+### 内置变量`gl_PointSize`
+
+`gl_PointSize`和gl_Position一样，都是顶点着色器GLSL ES的一个内置变量，`gl_PointSize`作用是设置点渲染的像素大小
+
+```js
+// 顶点着色器代码
+const vertexShader = `
+void main(){
+  gl_PointSize = 20.0;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+### 内置变量`gl_PointCoord`(Point坐标)
+
+`Points`可以渲染多个方形点，每个方形点的`gl_PointCoord`坐标原点都位于自身的左上角，x轴水平向右，y轴水平向下
+
+不管`gl_PointSize`多大，`Points`方形点右下角`gl_PointCoord`坐标都是`(1.0,1.0)`。
+
+![image-20250323105647251](./three.assets/点坐标系.png)
+
+### 内置函数distance()
+
+`distance()`是着色器语言GLSL ES内置函数，用来计算两个向量之间的距离。
+
+`distance(gl_PointCoord, vec2(0.5, 0.5));`表示方形点里面每个片元的`gl_PointCoord`坐标与坐标`(0.5,0.5)`的距离r。
+
+以这个距离距离r作为临界值，每个方形点的所有片元凡是距离中心vec2(0.5, 0.5)的距离大于r，都舍弃，就会生成一个圆形的点。
+
+```js
+// 片元着色器代码
+const fragmentShader = `
+void main() {
+  // vec2(0.5, 0.5)是方形点的圆心
+  float r = distance(gl_PointCoord, vec2(0.5, 0.5));
+  if(r < 0.5){
+    // 方形区域片元距离几何中心半径小于0.5，像素颜色设置红色
+    gl_FragColor = vec4(0.0,1.0,1.0,1.0);
+  }else {
+    // 方形区域距离几何中心半径不小于0.5的片元剪裁舍弃掉：
+    discard;
+  }
+}
+`
+```
+
+## attribute自定义顶点变量
+
+给threejs几何体`BufferGeometry`自定义任意类型的顶点数据,同时顶点着色器代码里面声明一个同名的attribute顶点变量
+
+### 顶点size属性
+
+```js
+// 顶点着色器代码
+const vertexShader = `
+attribute float size;//着色器size变量
+void main(){
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+### 案例
+
+使用`Points`渲染几何体顶点数据的时候，怎么能让每一个顶点对应的方形点尺寸不同
+
+![image-20250323111000245](./three.assets/点案例.png)
+
+模仿顶点位置坐标`geometry.attributes.position`的自定义，给几何体`BufferGeometry`自定义一个顶点size数据`geometry.attributes.size`。
+
+`size`里面的每个顶点数据表示对应`Points`方形点尺寸`gl_PointSize`的缩放倍数。
+
+`gl_PointSize = 20.0 * size;`分别控制每个方形点的尺寸大小。
+
+```js
+const geometry = new THREE.BufferGeometry();
+const vertices = new Float32Array([
+    0, 0, 0, //顶点1坐标
+    25, 0, 0, //顶点2坐标
+    50, 0, 0, //顶点3坐标
+    75, 0, 0, //顶点4坐标
+    100, 0, 0, //顶点5坐标
+]);
+//3个为一组，表示一个顶点的xyz坐标
+geometry.attributes.position = new THREE.BufferAttribute(vertices, 3); 
+const sizes = new Float32Array([
+    1.0, //顶点1对应方形点尺寸缩放倍数
+    0.8, //顶点2
+    0.6, //顶点3
+    0.4, //顶点4
+    0.2, //顶点5
+]);
+// 1个数为一组表示对应顶点gl_PointSize的缩放倍数
+//几何体自定的size属性
+geometry.attributes.size = new THREE.BufferAttribute(sizes, 1);
+
+geometry.attributes.size = new THREE.BufferAttribute(sizes, 1);
+// 顶点着色器代码
+const vertexShader = `
+attribute float size;//着色器size变量
+void main(){
+  ...
+}
+`
+
+// 顶点着色器代码
+const vertexShader = `
+attribute float size;
+void main(){
+  gl_PointSize = 20.0 * size;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+`
+```
+
+# shader修改材质
+
+## #include语法简介
+
+着色器语言GLSL ES，可以通过`#include`引入其它的着色器代码文件，你可以类比js的 import语法去对比理解(虽然不同，但是都是为了引入别的文件)。
+
+- 查看threejs官方文件包`src\renderers\shaders\ShaderChunk`目录，可以发现**ShaderChunk**文件夹里面有很多着色器GLSL ES的功能代码模块。
+- 比如文件**default_vertex.glsl.js**、**default_fragment.glsl.js**、**color_pars_vertex.glsl.js**
+- **ShaderChunk**里面的shader代码文件，会被其它的文件引用。
+  - 比如网格基础材质MeshBasicMaterial对应shader文件meshbasic.glsl.js，就引入了文件`color_pars_vertex.glsl.js`
+
+## `onBeforeCompile`查看shader代码
+
+threejs各个材质材质会从父类`Material`继承`.onBeforeCompile`方法。
+
+可以通过`.onBeforeCompile`函数的参数`shade`r获取材质的着色器代码，其实你对照下，就会发现这些代码的来自`\src\renderers\shaders\ShaderLib`目录下shader文件。
+
+```js
+const material = new THREE.MeshLambertMaterial();
+material.onBeforeCompile = function (shader) {
+  console.log('shader', shader);
+  console.log('顶点着色器', shader.vertexShader);
+  console.log('片元着色器', shader.fragmentShader);
+}
+```
+
+## onBeforeCompile修改材质shader
+
+因为threejs经常改变，不太稳定，所以这里**强烈提醒**，**不同版本**threejs，同一个材质的shader代码可能一样，也可能不一样，代码打印结果，以使用的threejs版本为准
+
+```js
+const material = new THREE.MeshLambertMaterial({
+    map: texture,
+});
+// 修改材质material默认的着色器shader代码
+material.onBeforeCompile = function (shader) {
+    // console.log('片元着色器', shader.fragmentShader);
+    // 在片元着色器main函数里面最后一行插入代码
+    shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <dithering_fragment>',//一行代码字符串，你可以用单双引号
+        //多行代码字符串，用模板字符串``更方便
+        `
+        #include <dithering_fragment>
+        gl_FragColor.r = 0.0;
+        gl_FragColor.g = 0.0;
+        `
+    )
+}
+```
+
+**打印结果**：
+
+```c
+//#include ....
+//#include ....
+void main() {
+	vec4 diffuseColor = vec4( diffuse, opacity );
+	#include <clipping_planes_fragment>
+	ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
+	vec3 totalEmissiveRadiance = emissive;
+	#include <logdepthbuf_fragment>
+	#include <map_fragment>
+	#include <color_fragment>
+	#include <alphamap_fragment>
+	#include <alphatest_fragment>
+	#include <alphahash_fragment>
+	#include <specularmap_fragment>
+	#include <normal_fragment_begin>
+	#include <normal_fragment_maps>
+	#include <emissivemap_fragment>
+	#include <lights_lambert_fragment>
+	#include <lights_fragment_begin>
+	#include <lights_fragment_maps>
+	#include <lights_fragment_end>
+	#include <aomap_fragment>
+	vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;
+	#include <envmap_fragment>
+	#include <opaque_fragment>
+	#include <tonemapping_fragment>
+	#include <colorspace_fragment>
+	#include <fog_fragment>
+	#include <premultiplied_alpha_fragment>
+	#include <dithering_fragment>
+}
+```
+
+## 修改`MeshLambertMaterial`片元着色器代码
+
+```js
+const mat=new THREE.MeshLambertMaterial();
+const geo=new THREE.BoxGeometry(100,100,100);
+const mesh=new THREE.Mesh(geo,mat);
+mesh.position.set(0,0,0)
+scene.add(mesh)
+mat.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        `
+        #include <dithering_fragment>
+        gl_FragColor.r = 0.0;
+        gl_FragColor.g = 0.0;
+        `
+    )
+}
+```
+
+## 修改材质shader(彩色图变灰度图)
+
+**灰度公式**：
+
+获取彩色图R、G、B三个分量，执行灰度图公式`0.299*R+0.587*G+0.114*B`，把计算结果gray作为新的R、G、B值。
+
+```js
+// 灰度图公式
+gray = 0.299 * R + 0.587 * G + 0.114 * B;
+// gray作为新的R、G、B值
+gl_FragColor = vec4(gray,gray,gray,1);
+```
+
+```js
+material.onBeforeCompile = function (shader) {
+    console.log('片元着色器', shader.fragmentShader);
+    // 在片元着色器main函数里面最后一行插入灰度图代码
+    shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        `
+        #include <dithering_fragment>
+        // 灰度图公式
+        float gray = 0.299*gl_FragColor.r+0.587*gl_FragColor.g+0.114*gl_FragColor.b;
+        gl_FragColor = vec4(gray,gray,gray,gl_FragColor.a);
+        `
+    )
+}
+```
+
+## 顶点位置插值(设置片元颜色)
+
+```js
+material.onBeforeCompile = function (shader) {
+  shader.vertexShader = shader.vertexShader.replace(
+    'void main() {',
+    `
+    varying vec3 vPosition;//顶点位置插值后的坐标
+    void main(){
+      // 顶点位置坐标模型矩阵变换后，进行插值计算
+      vPosition = vec3(modelMatrix * vec4( position, 1.0 ));
+    `
+  );
+};
+```
+
+```js
+shader.fragmentShader = shader.fragmentShader.replace(
+    'void main() {',
+    `varying vec3 vPosition;
+    void main() {
+    `
+)
+
+shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <dithering_fragment>',
+    `
+    #include <dithering_fragment>
+    if(vPosition.y > 20.0 && vPosition.y < 21.0 ){
+        gl_FragColor = vec4(1.0,1.0,0.0,1.0);
+    }
+    `
+);
+```
+
+### 模型扫光效果
+
+```js
+material.onBeforeCompile = function (shader) {
+    ...
+    shader.fragmentShader = shader.fragmentShader.replace(
+        'void main() {',
+        `
+    uniform float y; //变化的y控制光带高度
+    varying vec3 vPosition;
+    void main() {
+    `
+    );
+    ...
+    shader.uniforms.y = { value: 30 };
+    mesh.shader = shader;
+};
+
+
+// 渲染循环
+const clock = new THREE.Clock();
+function render() {
+    // console.log('mesh.shader', mesh.shader);
+    const deltaTime = clock.getDelta();
+    renderer.render(scene, camera);
+    // enderer.render执行一次，才能获取到mesh.shader
+    mesh.shader.uniforms.y.value += 30 * deltaTime;
+    // 一旦y接近模型mesh顶部，重新设置为0，这样扫光反复循环
+    if (mesh.shader.uniforms.y.value > 99) {
+        mesh.shader.uniforms.y.value = 0;
+    }
+    requestAnimationFrame(render);
+}
+render();
+```
+
+### 模型扫光效果(颜色渐变)
+
+#### 内置函数`mix`
+
+`mix`是着色器语言GLSL ES的内置函数，可以直接使用，比如参数1和2分表示一个颜色值，通过参数3百分比per，就可以控制两个颜色color1、color2的混合比例,参数3范围控制在0~1就行。
+
+```js
+mix( color1,color2, per);
+```
+
+#### 设置光带上半部分颜色渐变
+
+- 高度`y`对应颜色是扫光的颜色`vec3(1.0,1.0,0.0)`
+- 高度`y + w`对应是模型自身的颜色`gl_FragColor.rgb`
+- `y` ~ `y+w`之间是两种颜色的混合。
+
+```js
+//片元着色器代码
+uniform float y; //变化的y控制光带高度
+float w = 10.0;//光带宽度一半
+void main(
+    // y随着时间改变光带位置也会改变
+    if(vPosition.y >= y && vPosition.y < y + w ){
+      float per = (vPosition.y-y)/w;//范围0~1
+      gl_FragColor.rgb = mix( vec3(1.0,1.0,0.0),gl_FragColor.rgb, per);
+    }
+)
+```
+
+#### 设置光带下半部分颜色渐变
+
+```js
+//片元着色器代码
+uniform float y; //变化的y控制光带高度
+float w = 10.0;//光带宽度一半
+void main(
+    // y随着时间改变光带位置也会改变
+    if(vPosition.y <= y && vPosition.y > y - w ){
+      float per = (y-vPosition.y)/w;//范围0~1
+      gl_FragColor.rgb = mix( vec3(1.0,1.0,0.0),gl_FragColor.rgb, per);
+    }
+)
+```
+
+#### 改变渐变规则
+
+参数3随着y的变化是线性的插值效果
+
+```js
+float per = (y-vPosition.y)/w;//范围0~1
+mix(color1,color2, per);
+```
+
+你可以尝试改变per的公式，比如平方根，平方去计算，这样per随着y变化曲线就不同。
+
+`pow`是着色器语言GLSL ES内置函数。
+
+```js
+per = pow(per,2.0);//平方
+gl_FragColor.rgb = mix( vec3(1.0,1.0,0.0),gl_FragColor.rgb, per);
+per = pow(per,0.5);//平方根
+gl_FragColor.rgb = mix( vec3(1.0,1.0,0.0),gl_FragColor.rgb, per);
+```
+
+至于pow参数选择大于1的2，还是小于1的0.5，或者其他值，不用可以记住，只要有个印象，可以改变per的变化曲线即可。
+
+#### 改变光带颜色
+
+你可以根据需要调整光带为任何颜色。
+
+```js
+// 光带黄色
+mix( vec3(1.0,1.0,0.0),gl_FragColor.rgb, per);
+// 光带白色
+mix( vec3(1.0,1.0,1.0),gl_FragColor.rgb, per);
+// 光带偏向青色
+mix( vec3(0.3,1.0,1.0),gl_FragColor.rgb, per);
+```

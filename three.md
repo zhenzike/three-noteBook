@@ -138,6 +138,13 @@ const controls = new OrbitControls( camera, renderer.domElement );
 //object: （必须）将要被控制的相机。该相机不允许是其他任何对象的子级,除非该对象是场景自身。
 
 //domElement: 用于事件监听的HTML元素。(可选)
+
+// 相机控件与.lookAt()无效( .target属性 )
+controls.target.set(x,y,0);
+controls.update(); //update()函数内会执行camera.lookAt(controls.targe)
+// 添加阻尼效果会更平滑
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
 ```
 
 **注意**：当控制器添加好以后,发现拖动监听区并没有发生任何的渲染改变
@@ -147,9 +154,18 @@ const controls = new OrbitControls( camera, renderer.domElement );
 - **解决方式**：监听摄像头的参数发生改变时,重新渲染
 
   ```js
-    cameraControl.addEventListener('change',()=>{
+  //如果使用了渲染循环函数就不需要使用这个
+  cameraControl.addEventListener('change',()=>{
       renderer.render(scene, camera);
-    })
+  })
+  
+  //一般封装的控件函数
+  export function createOrbitControls(camera, renderer,tagerXYZ={x:0,y:0,z:0}) {
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(tagerXYZ.x, tagerXYZ.y, tagerXYZ.z); // 设置控制器的目标点
+      controls.update();
+      return controls;
+  }
   ```
 
 
@@ -299,7 +315,7 @@ camera.lookAt(pathArr[pathIndex].x,pathArr[pathIndex].y,pathArr[pathIndex].z);
 
 THREE.CameraHelper可以用来可视化正投影相机、透视投影相机对象。
 
-## 包围盒
+# 包围盒
 
 所谓包围盒Box3,就是一个长方体空间,把模型的所有顶点数据包围在一个最小的长方体空间中,这个最小长方体空间就是该模型的包围盒Box3【可以容纳一个物体的最小体积的盒子】。
 
@@ -328,7 +344,7 @@ box3.min = new THREE.Vector3(-10,-10,0);
 box3.max = new THREE.Vector3(100,20,50);
 ```
 
-### 计算模型最小包围盒
+## 计算模型最小包围盒
 
 ```js
 //模型对象,比如mesh或group,作为.expandByObject()的参数,可以计算该模型的包围盒。
@@ -347,7 +363,7 @@ console.log('查看包围盒', box3);
 
 ![image-20250303223851245](./three.assets/包围盒最大最小.png)
 
-### 包围盒尺寸
+## 包围盒尺寸
 
 ```js
 const scale = new THREE.Vector3 ()
@@ -357,7 +373,7 @@ box3.getSize(scale)
 console.log('模型包围盒尺寸',scale);
 ```
 
-### 包围盒几何中心
+## 包围盒几何中心
 
 ```js
 //Box3方法.getCenter()计算返回包围盒几何中心
@@ -367,7 +383,7 @@ box3.getCenter(center)
 console.log('模型中心坐标',center) ;
 ```
 
-### 地图案例
+## 地图案例
 
 ![image-20250304100547765](./three.assets/ditu.png)
 
@@ -382,7 +398,7 @@ ditu.forEach((item) => {
 
 console.log(posData);
 const shape = new THREE.Shape(posData);
-const geometry = new THREE.ShapeGeometry(shape);
+const geometry = new THREE.metry(shape);
 const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 const Hmodel = new THREE.Mesh(geometry, material);
 ```
@@ -440,12 +456,30 @@ Three.js的材质默认正面可见,反面不可见,
 
 - 对于矩形平面PlaneGeometry、圆形平面如果你想看到两面,可以设置`side: THREE. DoubleSide`.
 
+- 如果需要创建六棱柱、八棱柱等特殊立方体，可以利用细分数来创建
+
+  - ```js
+    const geometry = new THREE.CylinderGeometry (50,50,100,6);// 通过设置细分数为6，导致无法形成圆形，而间接形成了六棱柱
+    
+    ```
+
+  - BoxGeometry 默认是沿着 Z 轴延伸的
+
+  - CylinderGeometry 默认是沿着 Y 轴延伸的
+
+  - ```js
+    const geometry = new THREE.CylinderGeometry(3, 3, 100, 32);
+    // 先将圆柱体旋转使其默认朝向Z轴
+    geometry.rotateX(Math.PI / 2)
+    ```
+
 ```js
 //BoxGeometry:
 const geometry = new THREE.BoxGeometry(100,100,100);//立方体
 const geometry = new THREE.SphereGeometry(50); //球体
 const geometry = new THREE.CylinderGeometry (50,50,100);// 圆柱
-const geometry = new THREE.PlaneGeometry(100,50);// PlaneGeometry:矩形平面
+//注意，圆柱的lookat机制与立方体不同
+const geometry = new THREE.PlaneGeometry(100,50);//PlaneGeometry:矩形平面
 const geometry = new THREE.CircleGeometry (50);//圆形平面
  
 ```
@@ -515,7 +549,8 @@ const vertices = new Float32Array([
 
 ```js
 const indexes = new Uint16Array([
-//下面索引值对应顶点位置数据中的顶点坐标0, 1,2,0,2,3,
+//下面索引值对应顶点位置数据中的顶点坐标
+    0, 1,2,0,2,3,
 ])
 ```
 
@@ -595,10 +630,6 @@ const pointsArr = [
 geometry.setFromPoints(pointsArr);
 ```
 
-
-
-
-
 ### 几何体的细分数
 
 Three.js很多几何体都提供了细分数相关的参数,这里以矩形平面几何体PlaneGeometry为例。
@@ -644,80 +675,54 @@ const geometry = new THREE.SphereGeometry( 15,8,8 );
 geometry.center();
 ```
 
-### 几何体颜色
+### 调整几何体的姿态
 
-#### 几何体顶点颜色渐变
+#### 修改几何体的中心
 
-- 顶点颜色`attributes.color`.
-- 顶点位置数据geometry.attributes.position.
-- 顶点法向量数据geometry.attributes.normal.
-- 顶点UV数据geometry.attributes.uv.
-- ![image-20250303164824975](./three.assets/颜色渐变.png)
+可以通过平移等方式改变几何体的几何中心
 
 ```js
-const geometry = new THREE.BufferGeometry();//创建一个几何体对象
-const vertices = new Float32Array([
-    0,0,0,//顶点1坐标
-    50,0,0,//顶点2坐标
-    0,25,0,//顶点3坐标
-]);
-//顶点位置
-geometry.attributes,. positon = new THREE. BufferAttribute(vertices,3);
+geometry .translate(0, 0, height / 2);
 ```
 
-与几何体BufferGeometry顶点位置数据.attributes.position——对应的顶点颜色数据.attributes.color。
+#### 旋转几何体lookat
+
+几何体并不像模型mesh一样拥有rotate的功能函数，所以无法直接调用旋转函数
+
+,但是==几何体拥有一个lookat函数，可以指定几何体的正面所朝向的方向，从而达到旋转的效果==。
 
 ```js
-const colors = new Float32Array([
-    1,0,0,//顶点1颜色
-    0,0,1,//顶点2颜色
-    0,1,0,//顶点3颜色
-])
-//设置几何体attributes属性的颜色color属性
-//3个为一组,表示一个顶点的颜色数据RGB
-geometry.attributes.color = new THREE. BufferAttribute(colors,3;
+var SphereCoord = lon2xyz(R, 0, 0);//SphereCoord球面坐标
+// 先旋转后平移
+geometry.lookAt(new THREE.Vector3(SphereCoord.x, SphereCoord.y, SphereCoord.z));
+// 沿着旋转后柱子高度方向平移，multiplyScalar作用：方向向量乘以一个数表示位移距离
+geometry.translate(0, 0,  R+height/2);
 ```
 
-**顶点渲染**：
+
+
+### 合并几何体
+
+`BufferGeometryUtils` 是 Three.js 提供的一个实用工具集，专门用于处理 BufferGeometry 类型的几何体。它包含了许多有用的功能来优化、合并和操作几何体数据。
 
 ```js
-const material = new THREE.PointsMaterial({
-    // color: 0x333333, //使用顶点颜色数据,color属性可以不用设置
-    vertexColors:true,//默认false,设置为true表示使用顶点颜色渲染
-    size: 20.0,//点对象像素尺寸
-});
-const points = new THREE.Points (geometry,material);//点模型对象
+//import {BufferGeometryUtils} from 'three/examples/jsm/utils/BufferGeometryUtils.js' 这么引入是不对的
+
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+ heBingMesh = mergeGeometries(geometryArr);
 ```
 
-#### Color对象颜色渐变插值
 
-**插值方法.lerpColors()**：
-执行`.lerpColors(Color1,Color2,percent)`通过一个百分比参数percent,可以控制Color1和Color2两种颜色混合的百分比,
 
-- Color1对应1-percent, 
-- Color2对应2-percent。
+#### 主要功能
 
-```js
-//其实就是将两种指定颜色 按照给出百分比混合出新的颜色
-const cl = new THREE.Color(Oxff0000);
-//红色const c2 = new THREE.Color(Ox0000ff);
-//蓝色const c = new THREE.Color() ;
-c.lerpColors(c1, c2,0.5);
-console.log(颜色插值结果’, c);
-```
+`BufferGeometryUtils` 提供以下常用方法：
 
-.**lerp()**：
-
-```js
-//.lerp()和.lerpColors()功能一样,只是具体语法细节不同。
-//c1与c2颜色混合,混合后的rgb值,赋值给c1的.r、.g、.b属性。
-const c1 = new THREE.Color(Oxff0000);//红色
-const c2 = new THREE.Color (Ox0000ff);//蓝色
-c1.lerp(c2, percent);
-
-```
-
-注意：颜色对象也可以通过`clone`克隆
+1. **mergeBufferGeometries(geometries, useGroups)**
+   - 合并多个 BufferGeometry 为一个
+   - 参数：
+     - `geometries`: 要合并的几何体数组
+     - `useGroups`: 是否保留原始几何体的分组信息
 
 
 
@@ -1307,6 +1312,81 @@ const renderer = new THREE.WebGLRenderer({
 - 可以尝试设置webgl渲染器设置对数深度缓冲区 `logarithmicDepthBuffer: true`来优化或解决。
 
 - `logarithmicDepthBuffer: true`作用简单来说,就是两个面间距比较小的时候,让threejs更容易区分两个面,谁在前,谁在后。
+
+## 颜色
+
+### 几何体顶点颜色渐变
+
+- 顶点颜色`attributes.color`.
+- 顶点位置数据geometry.attributes.position.
+- 顶点法向量数据geometry.attributes.normal.
+- 顶点UV数据geometry.attributes.uv.
+- ![image-20250303164824975](./three.assets/颜色渐变.png)
+
+```js
+const geometry = new THREE.BufferGeometry();//创建一个几何体对象
+const vertices = new Float32Array([
+    0,0,0,//顶点1坐标
+    50,0,0,//顶点2坐标
+    0,25,0,//顶点3坐标
+]);
+//顶点位置
+geometry.attributes,. positon = new THREE. BufferAttribute(vertices,3);
+```
+
+与几何体BufferGeometry顶点位置数据.attributes.position——对应的顶点颜色数据.attributes.color。
+
+```js
+const colors = new Float32Array([
+    1,0,0,//顶点1颜色
+    0,0,1,//顶点2颜色
+    0,1,0,//顶点3颜色
+])
+//设置几何体attributes属性的颜色color属性
+//3个为一组,表示一个顶点的颜色数据RGB
+geometry.attributes.color = new THREE.BufferAttribute(colors,3;
+```
+
+**顶点渲染**：
+
+```js
+const material = new THREE.PointsMaterial({
+    // color: 0x333333, //使用顶点颜色数据,color属性可以不用设置
+    vertexColors:true,//默认false,设置为true表示使用顶点颜色渲染
+    size: 20.0,//点对象像素尺寸
+});
+const points = new THREE.Points (geometry,material);//点模型对象
+```
+
+### Color渐变插值lerp
+
+**插值方法.lerpColors()**：
+执行`.lerpColors(Color1,Color2,percent)`通过一个百分比参数percent,可以控制Color1和Color2两种颜色混合的百分比,
+
+- Color1对应1-percent, 
+- Color2对应2-percent。
+
+```js
+//其实就是将两种指定颜色 按照给出百分比混合出新的颜色
+const cl = new THREE.Color(0xff0000);//红色
+const c2 = new THREE.Color(0x0000ff);//蓝色
+const c = new THREE.Color() ;
+c.lerpColors(c1, c2,0.5);
+console.log(颜色插值结果’, c);
+```
+
+.**lerp()**：
+
+```js
+//.lerp()和.lerpColors()功能一样,只是具体语法细节不同。
+//c1与c2颜色混合,混合后的rgb值,赋值给c1的.r、.g、.b属性。
+const c1 = new THREE.Color(Oxff0000);//红色
+const c2 = new THREE.Color (Ox0000ff);//蓝色
+c1.lerp(c2, percent);
+
+```
+
+注意：颜色对象也可以通过`clone`克隆
 
 ## 模型加载进度条
 
@@ -2767,6 +2847,8 @@ const geometry = new THREE.LatheGeometry(pointsArr,30);
 
 ## 轮廓填充ShapeGeometry
 
+`ShapeGeometry`是专门设计用于创建**二维平面多边形**的几何体
+
 有些时候已知一个多边形的外轮廓坐标,想通过这些外轮廓坐标生成一个多边形几何体平面,可以借助threejs提供的`轮廓填充ShapeGcomctry`几何体实现。
 
 首先需要定义`多边形轮廓Shape`
@@ -2776,9 +2858,9 @@ const geometry = new THREE.LatheGeometry(pointsArr,30);
 //注意顺序问题,随意选择一个点作为起点都行,然后按照顺时针或逆时针依次写下点的坐标。
 const pointsArr = [
     new THREE. Vector2(-50,-50),
-    new THREE. Vector2(-60,O),
+    new THREE. Vector2(-60,0),
     new THREE. Vector2(0,50),
-    new THREE. Vector2(60,O),
+    new THREE. Vector2(60,0),
     new THREE. Vector2 (50,-50),
 ]
 //这一组二维顶点坐标作为Shape的参数构成一个多边形轮廓。
@@ -2788,7 +2870,7 @@ const shape = new THREE.Shape(pointsArr);
 const geometry =new THREE.ShapeGeometry(shape);
 ```
 
-## 拉伸成型
+## 拉伸ExtrudeGeometry
 
 拉伸几何体ExtrudeGeometry和轮廓填充几何体ShapeGeometry一样,都是基于一个基础的平面轮廓Shape进行变换,生成一个几何体。
 
@@ -2978,6 +3060,50 @@ const edgesMaterial = new THREE.LineBasicMaterial({
 const line = new THREE.LineSegments(edges,edgesMaterial);
 mesh.add(line)
 ```
+
+## 代码生成模型导出
+
+通过three.js提供的扩展库`GLTFExporter`，可以把代码生成的三维模型，保存为.gltf文件，可以根据需要导出-gltf格式或导出.gltf的二进制.glb格式。
+
+```js
+import { GLTFExporter } from 'three/examples/jsm/Addons.js';
+
+function exportGLTF(input) {
+    var gltfExporter = new GLTFExporter();
+    var options = {
+        trs: false,
+        onlyVisible: true,
+        truncateDrawRange: true,
+        binary: true, //是否导出.gltf的二进制格式.glb  控制导出.gltf还是.glb
+        forceIndices: false,
+        forcePowerOfTwoTextures: false
+    };
+    gltfExporter.parse(input, function (result) {
+        if (result instanceof ArrayBuffer) {
+            save(new Blob([result], {type: 'application/octet-stream'}), 'scene.glb');
+        } else {
+            var output = JSON.stringify(result, null, 2);
+            save(new Blob([output], {type: 'text/plain'}), 'scene.gltf');
+        }
+    }, options);
+}
+
+
+
+var link = document.createElement('a');
+link.style.display = 'none';
+// document.body.appendChild(link);
+function save(blob, filename) {
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+}
+export {
+exportGLTF
+};
+```
+
+
 
 # 后处理
 
@@ -3318,6 +3444,244 @@ npm install --save @types/three
 - **优点**：支持动态路径，图片会被 Vite 处理。
 
 - **缺点**：语法稍微复杂。
+
+## 判断坐标是否在一个多边形内
+
+```
+npm install point-in-polygon -s
+```
+
+## 三角剖分库
+
+开源库`delaunator(三角剖分)`
+
+```js
+github地址:https://github.com/mapbox/delaunator
+
+npm install delaunator
+```
+
+## 性能优化
+
+对于一部分大量的计算数据【比如点阵的生成、经纬度的转换，判断是否在轮廓内等等】，如果是静态数据，可以在第一次完成后，将其计算的结果保存到本地，之后直接去读取节省计算机的计算资源
+
+## 经纬度转墨卡托坐标
+
+```js
+/**
+ * 经纬度坐标转墨卡托坐标
+ * @param {经度(角度值)} longitude 
+ * @param {维度(角度值)} latitude
+ */
+// 墨卡托坐标系：展开地球，赤道作为x轴，向东为x轴正方，本初子午线作为y轴，向北为y轴正方向。
+// 数字20037508.34是地球赤道周长的一半：地球半径6378137米，赤道周长2*PI*r = 2 * 20037508.3427892，墨卡托坐标x轴区间[-20037508.3427892,20037508.3427892]
+function lon2xy(longitude, latitude) {
+    var E = longitude;
+    var N = latitude;
+    var x = E * 20037508.34 / 180;
+    var y = Math.log(Math.tan((90 + N) * Math.PI / 360)) / (Math.PI / 180);
+    y = y * 20037508.34 / 180;
+    return {
+        x: x, //墨卡托x坐标——对应经度
+        y: y, //墨卡托y坐标——对应维度
+    }
+}
+export {
+    lon2xy
+}
+```
+
+## 经纬度转球面坐标
+
+```js
+/**
+ * 经纬度坐标转球面坐标  
+ * @param {地球半径} R  
+ * @param {经度(角度值)} longitude 
+ * @param {维度(角度值)} latitude
+ */
+function lon2xyz(R,longitude,latitude) {
+    var lon = longitude * Math.PI / 180;//转弧度值
+    var lat = latitude * Math.PI / 180;//转弧度值
+    lon = -lon;// three.js坐标系z坐标轴对应经度-90度，而不是90度
+
+    // 经纬度坐标转球面坐标计算公式
+    var x = R * Math.cos(lat) * Math.cos(lon);
+    var y = R * Math.sin(lat);
+    var z = R * Math.cos(lat) * Math.sin(lon);
+    // 返回球面坐标
+    return {
+        x:x,
+        y:y,
+        z:z,
+    };
+}
+
+export { lon2xyz }
+```
+
+
+
+## 外接圆的绘制
+
+### 绘制外接圆曲线
+
+注意：==这里绘制外接圆的**函数条件**==:
+
+- 这里的被外接圆的球形的圆心在（0，0，0）
+
+- 外接圆的起点与终点关于y轴对称
+
+- 起点与终点所处平面处于XOY平面
+
+- <p style="color:red">如果原本需要进行绘制的外接元的圆心、起点、终点不能满足上述条件，需要进行四元转换，并将转换后满足上述条件的圆心、起点、终点传入该函数，最后将绘制的外接圆通过逆四元转换，绘画至原来的位置</p>
+
+```js
+/*通过函数arcXOY()可以在XOY平面上绘制一个关于y轴对称的圆弧曲线
+startPoint, endPoint：表示圆弧曲线的起点和结束点坐标值，起点和结束点关于y轴对称*/
+function arcXOY(startPoint, endPoint) {
+  // 计算两点的中点
+  var middleV3 = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+  // 弦垂线的方向dir(弦的中点和圆心构成的向量)
+  var dir = middleV3.clone().normalize()
+  // 计算球面飞线的起点、结束点和球心构成夹角的弧度值
+  var earthRadianAngle = radianAOB(startPoint, endPoint,new THREE.Vector3(0, 0, 0))
+  /*设置飞线轨迹圆弧的中间点坐标
+  弧度值 * R * 0.2：表示飞线轨迹圆弧顶部距离地球球面的距离
+  起点、结束点相聚越远，构成的弧线顶部距离球面越高*/
+  var arcTopCoord = dir.multiplyScalar(R + earthRadianAngle * R * 0.2)
+  //求三个点的外接圆圆心(飞线圆弧轨迹的圆心坐标)
+  var flyArcCenter = threePointCenter(startPoint, endPoint, arcTopCoord)
+  // 飞线圆弧轨迹半径flyArcR
+  var flyArcR = Math.abs(flyArcCenter.y - arcTopCoord.y);
+  /*坐标原点和飞线起点构成直线和y轴负半轴夹角弧度值
+  参数分别是：飞线圆弧起点、y轴负半轴上一点、飞线圆弧圆心*/
+  var flyRadianAngle = radianAOB(startPoint, new THREE.Vector3(0, -1, 0),flyArcCenter);
+  var startAngle = -Math.PI / 2 + flyRadianAngle;//飞线圆弧开始角度
+  var endAngle = Math.PI - startAngle;//飞线圆弧结束角度
+  // 调用圆弧线模型的绘制函数
+  var arcline = circleLine(flyArcCenter.x, flyArcCenter.y, flyArcR, startAngle, endAngle)
+  arcline.center = flyArcCenter;//飞线圆弧自定一个属性表示飞线圆弧的圆心
+  arcline.topCoord = arcTopCoord;//飞线圆弧自定一个属性表示飞线圆弧中间也就是顶部坐标
+  return arcline
+}
+
+function radianAOB(A,B,O) {
+  // dir1、dir2：球面上两个点和球心构成的方向向量
+  var dir1 = A.clone().sub(O).normalize();
+  var dir2 = B.clone().sub(O).normalize();
+  //点乘.dot()计算夹角余弦值
+  var cosAngle = dir1.clone().dot(dir2);
+  var radianAngle = Math.acos(cosAngle);//余弦值转夹角弧度值,通过余弦值可以计算夹角范围是0~180度
+  // console.log('夹角度数',THREE.Math.radToDeg(radianAngle));
+  return radianAngle
+}
+
+
+/*绘制一条圆弧曲线模型Line
+5个参数含义：(圆心横坐标, 圆心纵坐标, 飞线圆弧轨迹半径, 开始角度, 结束角度)*/
+function circleLine(x, y, r, startAngle, endAngle) {
+  var geometry = new THREE.Geometry(); //声明一个几何体对象Geometry
+  // THREE.ArcCurve创建圆弧曲线
+  var arc = new THREE.ArcCurve(x, y, r, startAngle, endAngle, false);
+  //getSpacedPoints是基类Curve的方法，返回一个vector2对象作为元素组成的数组
+  var points = arc.getSpacedPoints(50); //分段数50，返回51个顶点
+  geometry.setFromPoints(points);// setFromPoints方法从points中提取数据改变几何体的顶点属性vertices
+  var material = new THREE.LineBasicMaterial({color: 0x00ffff,});//线条材质
+  var line = new THREE.Line(geometry, material);//线条模型对象
+  return line;
+}
+```
+
+### 三点计算外接圆圆心
+
+```js
+function threePointCenter(p1, p2, p3) {
+  var L1 = p1.lengthSq();//p1到坐标原点距离的平方
+  var L2 = p2.lengthSq();
+  var L3 = p3.lengthSq();
+  var x1 = p1.x,
+  y1 = p1.y,
+  x2 = p2.x,
+  y2 = p2.y,
+  x3 = p3.x,
+  y3 = p3.y;
+  //有向面积公式计算一个三个向量组成的三角形的有向面积
+  //这里的S实际上为这个三角形面积的2倍
+  var S = x1 * y2 + x2 * y3 + x3 * y1 - x1 * y3 - x2 * y1 - x3 * y2;
+
+  //通过该有向面积公式计算外接圆的圆心坐标
+  var x = (L2 * y3 + L1 * y2 + L3 * y1 - L2 * y1 - L3 * y2 - L1 * y3) / S / 2;
+  var y = (L3 * x2 + L2 * x1 + L1 * x3 - L1 * x2 - L2 * x3 - L3 * x1) / S / 2;
+  // 三点外接圆圆心坐标
+  var center = new THREE.Vector3(x, y, 0);
+  return center
+}
+```
+
+### 3D坐标转换2D
+
+```js
+/*把3D球面上任意的两个飞线起点和结束点绕球心旋转到到XOY平面上，
+ 同时保持关于y轴对称，借助旋转得到的新起点和新结束点绘制
+一个圆弧，最后把绘制的圆弧反向旋转到原来的起点和结束点即
+可*/
+function _3Dto2D(startSphere, endSphere) {
+  /*计算第一次旋转的四元数：表示从一个平面如何旋转到另一个平面*/
+  var origin = new THREE.Vector3(0, 0, 0);//球心坐标
+  var startDir = startSphere.clone().sub(origin);//飞线起点与球心构成方向向量
+  var endDir = endSphere.clone().sub(origin);//飞线结束点与球心构成方向向量
+  // dir1和dir2构成一个三角形，.cross()叉乘计算该三角形法线normal
+  var normal = startDir.clone().cross(endDir).normalize();
+  var xoyNormal = new THREE.Vector3(0, 0, 1);//XOY平面的法线
+  //.setFromUnitVectors()计算从normal向量旋转达到xoyNormal向量所需要的四元数
+  // quaternion表示把球面飞线旋转到XOY平面上需要的四元数
+  var quaternion3D_XOY = new THREE.Quaternion().setFromUnitVectors(normal, xoyNormal);
+  /*第一次旋转：飞线起点、结束点从3D空间第一次旋转到XOY平面*/
+  var startSphereXOY = startSphere.clone().applyQuaternion(quaternion3D_XOY);
+  var endSphereXOY = endSphere.clone().applyQuaternion(quaternion3D_XOY);
+
+  /*计算第二次旋转的四元数*/
+  // middleV3：startSphereXOY和endSphereXOY的中点
+  var middleV3 = startSphereXOY.clone().add(endSphereXOY).multiplyScalar(0.5);
+  var midDir = middleV3.clone().sub(origin).normalize();// 旋转前向量midDir，中点middleV3和球心构成的方向向量
+  var yDir = new THREE.Vector3(0, 1, 0);// 旋转后向量yDir，即y轴
+  // .setFromUnitVectors()计算从midDir向量旋转达到yDir向量所需要的四元数
+  // quaternion2表示让第一次旋转到XOY平面的起点和结束点关于y轴对称需要的四元数
+  var quaternionXOY_Y = new THREE.Quaternion().setFromUnitVectors(midDir, yDir);
+
+  /*第二次旋转：使旋转到XOY平面的点再次旋转，实现关于Y轴对称*/
+  var startSpherXOY_Y = startSphereXOY.clone().applyQuaternion(quaternionXOY_Y);
+  var endSphereXOY_Y = endSphereXOY.clone().applyQuaternion(quaternionXOY_Y);
+
+  /**一个四元数表示一个旋转过程
+  *.invert()方法表示四元数的逆，简单说就是把旋转过程倒过来
+  * 两次旋转的四元数执行.invert()求逆，然后执行.multiply()相乘
+  *新版本.invert()对应旧版本.invert()
+  */
+  var quaternionInverse = quaternion3D_XOY.clone().invert().multiply(quaternionXOY_Y.clone().invert())
+  return {
+    // 返回两次旋转四元数的逆四元数
+    quaternion: quaternionInverse,
+    // 范围两次旋转后在XOY平面上关于y轴对称的圆弧起点和结束点坐标
+    startPoint: startSpherXOY_Y,
+    endPoint: endSphereXOY_Y,
+  }
+}
+
+
+
+function flyArc(startSphereCoord, endSphereCoord) {
+  //计算绘制圆弧需要的关于y轴对称的起点、结束点和旋转四元数
+  var startEndQua = _3Dto2D(startSphereCoord, endSphereCoord)
+  // 调用arcXOY函数绘制一条圆弧飞线轨迹
+  var arcline = arcXOY(startEndQua.startPoint, startEndQua.endPoint);
+  arcline.quaternion.multiply(startEndQua.quaternion)
+  return arcline;
+}
+```
+
+
 
 # 射线
 
@@ -3794,7 +4158,7 @@ for ( let i = o; i < arr.length; i++){
 - 基于关键帧数据KeyframeTrack,创建关键帧动画AnimationClip
 
 ```js
-mesh. name = "Box";
+mesh.name = "Box";
 //给需要设置关键帧动画的模型命名mesh. name = "Box";
 const times = [0,3, 6];//时间轴上,设置三个时刻0、3、6秒
 // times中三个不同时间点,物体分别对应values中的三个xyz坐标
@@ -3814,7 +4178,6 @@ const clip = new THREE.AnimationClip("test", 9,[posKF, colorKF]);
 //创建一个clip关键帧动画对象,命名"test",动画持续时间6s
 // AnimationClip包含的所有关键帧数据都放到参数3数组中即可
 const clip = new THREE.AnimationClip("test",6,[posKF,colorKF]);
-
 ```
 
 ## 动画控制
@@ -4578,9 +4941,11 @@ const B = A.add(walk); //{x: 230, y:130,z: 0}
 
 ### 向量复制方法copy
 
+可以对某个向量进行复制
+
 ### 向量乘法(求路程)
 
-`向量方法.multiplyScalar(50）`表示向量x、y、z三个分量和参数分别相乘。
+`向量方法multiplyScalar(50）`表示向量x、y、z三个分量和参数分别相乘。
 
 `v.clone().multiplyScalar(50)`的含义和`Vector3(v.x *50, v.y * 50,V.Z*50)`是一样的。
 
@@ -5250,6 +5615,42 @@ quaternion.setFromUnitVectors(a, b);
 // quaternion表示的是变化过程，在原来基础上乘以quaternion即可
 fly.quaternion.multiply(quaternion);
 ```
+
+### 案例
+
+这里的正对方向 也可以理解成是  **==模型的高度方向==**。如果不是这样，可以在模型中先进行调整
+
+![image-20250325153358956](./three.assets/image-20250325153358956.png)
+
+![image-20250325153429980](./three.assets/无法贴合.png)
+
+==因此需要通过四元数，调整图片的旋转角度==：
+
+![image-20250325153950575](./three.assets/调整角度.png)
+
+```js
+export function getTagimg(r,lng,lat) {
+    const imgPath = new URL('@/assets/imgs/贴图.png', import.meta.url).href;
+    const texttrue = new THREE.TextureLoader().load(imgPath);
+     console.log(texttrue);
+    const geometry = new THREE.PlaneGeometry(5, 5);
+    const material = new THREE.MeshBasicMaterial({
+        map: texttrue,
+        transparent: true,
+        opacity: 1,
+        side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    const position = lon2xyz(r, lng, lat);
+    const roationB=new THREE.Vector3(position.x,position.y,position.z).normalize()
+    const roationA=new THREE.Vector3(0,0,1)
+    mesh.quaternion.setFromUnitVectors(roationA,roationB)
+    mesh.position.set(position.x, position.y, position.z);
+    return mesh
+}
+```
+
+
 
 ## 矩阵
 
@@ -7124,6 +7525,21 @@ shader.fragmentShader = shader.fragmentShader.replace(
 );
 ```
 
+### 外部插入自定义属性
+
+```js
+var percentAttribue = new THREE.BufferAttribute(new Float32Array(percentArr), 1);
+geometry2.attributes.percent = percentAttribue;
+shader.vertexShader = shader.vertexShader.replace(
+    'void main() {',
+    //顶点大小百分比变量，控制点渲染大小
+    `attribute float percent; 
+        void main() {` // .join()把数组元素合成字符串
+);
+```
+
+
+
 ### 模型扫光效果
 
 ```js
@@ -7238,3 +7654,179 @@ mix( vec3(1.0,1.0,1.0),gl_FragColor.rgb, per);
 // 光带偏向青色
 mix( vec3(0.3,1.0,1.0),gl_FragColor.rgb, per);
 ```
+
+# 补充
+
+## 地球经纬度
+
+![image-20250324154846998](./three.assets/经纬度1.png)
+
+![image-20250324154906316](./three.assets/经纬度2.png)
+
+### 经纬度转Three.js球面坐标
+
+假设半径为R的球面上存在一点**A**，A的经纬度是`(lon,lat)`(弧度值),在Three.js坐标中A的坐标是`(x,y,z)`。
+
+#### 根据维度计算y坐标和XOZ平面上投影
+
+根据纬度可以计算出来球面上**y**坐标
+
+```javascript
+// y = R*sin(维度);
+y = R*sin(lat);
+```
+
+A点投影到Three.js的XOZ平面上
+
+```javascript
+// y = R*sin(维度);
+L = R*cos(lat);
+```
+
+#### 根据A点在XOZ平面上投影计算x和z坐标
+
+
+```javascript
+// x = L * Math.cos(经度)
+x = R * Math.cos(lat) * Math.cos(lon);
+// x = L * Math.sin(经度)
+z = R * Math.cos(lat) * Math.sin(lon);
+```
+
+注意考虑Three.js坐标轴z正半轴对应的不是90度，而是-90度，所以需要把经度取反，或者把坐标z取反。
+
+```javascript
+// x = L * Math.cos(-经度)
+x = R * Math.cos(lat) * Math.cos(-lon);
+// x = L * Math.sin(-经度)
+z = R * Math.cos(lat) * Math.sin(-lon);
+```
+
+### 转换函数
+
+```js
+/**
+ * 经纬度坐标转球面坐标  
+ * @param {地球半径} R  
+ * @param {经度(角度值)} longitude 
+ * @param {维度(角度值)} latitude
+ */
+function lon2xyz(R,longitude,latitude) {
+    var lon = longitude * Math.PI / 180;//转弧度值
+    var lat = latitude * Math.PI / 180;//转弧度值
+    lon = -lon;// three.js坐标系z坐标轴对应经度-90度，而不是90度
+
+    // 经纬度坐标转球面坐标计算公式
+    var x = R * Math.cos(lat) * Math.cos(lon);
+    var y = R * Math.sin(lat);
+    var z = R * Math.cos(lat) * Math.sin(lon);
+    // 返回球面坐标
+    return {
+        x:x,
+        y:y,
+        z:z,
+    };
+}
+
+export { lon2xyz }
+```
+
+### 使用一个线模型加载所有边界线
+
+```js
+function countryLine(R) {
+    var loader = new THREE.FileLoader();
+    loader.setResponseType('json');
+    var group = new THREE.Group();
+    var allPointArr = [];
+    loader.load('./world.json', function (data) {
+        data.features.forEach(function (country) {
+            // "Polygon"：国家country有一个封闭轮廓
+            //"MultiPolygon"：国家country有多个封闭轮廓
+            if (country.geometry.type === "Polygon") {
+                // 把"Polygon"和"MultiPolygon"的geometry.coordinates数据结构处理为一致
+                country.geometry.coordinates = [country.geometry.coordinates];
+            }
+            country.geometry.coordinates.forEach(polygon => {
+                var pointArr = [];//边界线顶点坐标
+                polygon[0].forEach(elem => {
+
+                    var coord = lon2xyz(1, elem[0], elem[1])
+                    pointArr.push(coord.x, coord.y, coord.z);
+
+                    // 小数后保留位数越多，精度越高，但是导出数据占用文件越大
+                    //小数点后设置合适的有效数字，过小精度不够，过大，文件比较大
+                    // var n = 3;//小数点保留3位数
+                    // pointArr.push(parseFloat(coord.x.toFixed(n)), parseFloat(coord.y.toFixed(n)), parseFloat(coord.z.toFixed(n)));
+                });
+                //LineSegments特点是连接所有的点成为线段，但是连接过的点，不会再次进行连接，所以需要将点复制一份，用来进行轮廓的闭合
+                allPointArr.push(pointArr[0], pointArr[1], pointArr[2]);
+                for (var i = 3; i < pointArr.length; i += 3) {
+                    // 如果使用LineSegments连线，需要把顶点多复制一份
+                    allPointArr.push(pointArr[i], pointArr[i + 1], pointArr[i + 2], pointArr[i], pointArr[i + 1], pointArr[i + 2]);
+                }
+                allPointArr.push(pointArr[0], pointArr[1], pointArr[2]);
+            });
+        });
+        var LineSegments = line(allPointArr);
+        LineSegments.scale.set(R,R,R);//球面坐标对应半径是1，需要缩放R倍
+        group.add(LineSegments);//一个LineSegments渲染所有国家边界坐标
+
+    })
+    return group;
+}
+```
+
+
+
+## 文件加载器FileLoade
+
+使用XMLHttpRequest来加载资源的低级类，并由大多数加载器内部使用。 它也可以直接用于加载任何没有对应加载器的文件类型。
+
+```js
+const loader = new THREE.FileLoader(); //加载一个文本文件，并把结果输出到控制台上 
+loader.load(
+    // 资源URL
+    'example.txt', 	
+    // onLoad回调 
+    function ( data ) { 	
+        // 将文本输出到控制台
+        console.log( data ) 
+    }, 
+    // onProgress回调 
+    function ( xhr ) { 
+        console.log( (xhr.loaded / xhr.total * 100) + '% loaded' ); 
+    },
+    function ( err ) { 	
+        console.error(); 
+    } );
+```
+
+*注意:* **必须启用缓存**.
+
+- `THREE.Cache.enabled = true;`这是一个全局属性，只需要设置一次，供内部使用FileLoader的所有加载器使用。
+-  Cache是一个缓存模块，用于保存通过此加载器发出的每个请求的响应，因此每个文件都会被请求一次。
+
+### 常用方法setResponseType
+
+改变响应的类型，其类型有效值如下:
+
+- text 或者空 string (默认) - 返回的数据类型为 string.
+- arraybuffer - 加载的数据类型到一个数组buffer中 `ArrayBuffer `并进行返回。
+- blob - 返回的数据为 Blob。
+- document - 使用 DOMParser 解析文件。
+- json - 将文件解析为 JSON.parse.
+
+```js
+//这里解析的文件类型为JSON,因此将其解析为JSON格式的数据
+export function getPositionJson() {
+    const filePath=new URL('@/assets/jsData/world.json',import.meta.url).href
+    const fileload=new THREE.FileLoader();
+    fileload.setResponseType('json');
+    fileload.load(filePath,data=>{
+        console.log(data);
+    })
+
+}
+```
+

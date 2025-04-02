@@ -630,6 +630,43 @@ const pointsArr = [
 geometry.setFromPoints(pointsArr);
 ```
 
+#### 案例：构建围墙
+
+```js
+//注意：这里的坐标c表示的是XOY平面上的坐标，通过for循环依次构建 XYZ上的三角形，构成两点之间由三角形拼接成的矩形平面
+var c = [
+  0, 0, //顶点1坐标
+  60, 0, //顶点2坐标
+  60, 80, //顶点3坐标
+  40, 120, //顶点4坐标
+  -20, 80, //顶点5坐标
+  0, 0, //顶点6坐标  和顶点1重合
+]
+
+var geometry = new THREE.BufferGeometry(); //声明一个空几何体对象
+var posArr = [];
+var h = 20; //围墙拉伸高度
+for (var i = 0; i < c.length - 2; i += 2) {
+  // 三角形1  三个顶点坐标
+  posArr.push(c[i], c[i + 1], 0, c[i + 2], c[i + 3], 0, c[i + 2], c[i + 3], h);
+  // 三角形2  三个顶点坐标
+  posArr.push(c[i], c[i + 1], 0, c[i + 2], c[i + 3], h, c[i], c[i + 1], h);
+}
+// 设置几何体attributes属性的位置position属性
+geometry.attributes.position = new THREE.BufferAttribute(new Float32Array(posArr), 3);
+geometry.computeVertexNormals();
+var material = new THREE.MeshLambertMaterial({
+  color: 0xffff00, //三角面颜色
+  side: THREE.DoubleSide, //两面可见
+  // wireframe:true,//查看三角形结构
+});
+var mesh = new THREE.Mesh(geometry, material); //网格模型对象Mesh
+mesh.rotateX(-Math.PI/2);
+model.add(mesh);
+```
+
+
+
 ### 几何体的细分数
 
 Three.js很多几何体都提供了细分数相关的参数,这里以矩形平面几何体PlaneGeometry为例。
@@ -712,8 +749,6 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  heBingMesh = mergeGeometries(geometryArr);
 ```
 
-
-
 #### 主要功能
 
 `BufferGeometryUtils` 提供以下常用方法：
@@ -724,7 +759,28 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
      - `geometries`: 要合并的几何体数组
      - `useGroups`: 是否保留原始几何体的分组信息
 
+### 模型边界线几何体
 
+先用`EdgesGeometry`重新计算长方体几何体,返回一个新的几何体,然后用线模型`LineSegments`模型渲染新的几何体即可。
+
+```js
+const geometry = new THREE.BoxGeometry(50,50,50);
+const material = new THREE.MeshLambertMaterial({
+    color: 0x004444,
+    transparent : true,
+    opacity:0.5,
+});
+const mesh = new THREE. Mesh(geometry,material);
+//长方体作为EdgesGeometry参数创建一个新的几何体
+const edges = new THREE.EdgesGeometry(geometry) ;
+const edgesMaterial = new THREE.LineBasicMaterial({
+    color: 0x00ffff,
+})
+const line = new THREE.LineSegments(edges,edgesMaterial);
+mesh.add(line)
+```
+
+![image-20250401163314541](./three.assets/模型边界线.png)
 
 ## step2.材质
 
@@ -1896,7 +1952,7 @@ npm地址: https://www.npmjs.com/package/dat.gui
 学习方便,threejs官方案例扩展库中也提供了gui.js直接使用。
 
 ```js
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js’;
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
  gui=new GUI();
 
 ```
@@ -2208,6 +2264,39 @@ textrue.repeat.set(12,12);
 
 !![image-20250228213050713](./three.assets/平铺.png)
 
+### 多个面共用一张纹理贴图
+
+```js
+var c = [
+    0, 0, //顶点1坐标
+    60, 0, //顶点2坐标
+    60, 80, //顶点3坐标
+    40, 120, //顶点4坐标
+    -20, 80, //顶点5坐标
+    0, 0, //顶点6坐标  和顶点1重合
+]
+var posArr = [];
+var uvrr = [];
+var h = 20; //围墙拉伸高度
+for (var i = 0; i < c.length - 2; i += 2) {
+    // 围墙多边形上两个点构成一个直线扫描出来一个高度为h的矩形
+    // 矩形的三角形1
+    posArr.push(c[i], c[i + 1], 0, c[i + 2], c[i + 3], 0, c[i + 2], c[i + 3], h);
+    // 矩形的三角形2
+    posArr.push(c[i], c[i + 1], 0, c[i + 2], c[i + 3], h, c[i], c[i + 1], h);
+
+    // 注意顺序问题，和顶点位置坐标对应
+    // uvrr.push(0, 0, 1, 0, 1, 1);
+    // uvrr.push(0, 0, 1, 1, 0, 1);
+    // 所有点展开  x方向从零到1   所有点生成的矩形铺满一张纹理贴图
+    //在数组c中，c.length表示的是顶点坐标数量，并不是顶点数量，因此顶点数量应该是c.length/2，所以 1除以c.length/2==多个平面共享一个纹理后，得到的u方向上的长度
+    uvrr.push(i / c.length, 0, i / c.length + 2 / c.length, 0, i / c.length + 2 / c.length, 1);
+    uvrr.push(i / c.length, 0, i / c.length + 2 / c.length, 1, i / c.length, 1);
+}
+```
+
+
+
 ### 场景标注
 
 矩形Mesh+背景透明png贴国(场景标注)
@@ -2257,6 +2346,93 @@ function render() {
 
 }
 ```
+
+### 法线贴图
+
+法线贴图（Normal Map）的核心作用是 **在不增加模型几何复杂度的前提下，通过改变表面法线方向来模拟物体表面的凹凸细节，增强光照效果的真实感**.
+
+```js
+// 水面颜色贴图
+var texture = new THREE.TextureLoader().load('./scene/水面.jpg');
+// 水面法线贴图
+var normalTexture = new THREE.TextureLoader().load('./scene/normal.jpg');
+// 设置阵列模式为 RepeatWrapping
+texture.wrapS = THREE.RepeatWrapping
+texture.wrapT = THREE.RepeatWrapping
+// 水面区域比较大的话，纹理贴图不能无限大，一般可以通过阵列解决。
+texture.repeat.set(20, 20); // x和y方向阵列纹理贴图
+normalTexture.wrapS = THREE.RepeatWrapping
+normalTexture.wrapT = THREE.RepeatWrapping
+normalTexture.repeat.set(20, 20);
+```
+
+### 不规则模型设置UV
+
+```js
+function WaterShapeMesh(pointsArrs) {
+    var shapeArr = []; //轮廓形状Shape集合
+    pointsArrs.forEach(pointsArr => {
+        var vector2Arr = [];
+        // 转化为Vector2构成的顶点数组
+        pointsArr[0].forEach(elem => {
+            var xy = lon2xy(elem[0], elem[1]); //经纬度转墨卡托坐标
+            vector2Arr.push(new THREE.Vector2(xy.x, xy.y));
+        });
+        var shape = new THREE.Shape(vector2Arr);
+        shapeArr.push(shape);
+    });
+    var geometry = new THREE.ShapeGeometry( //填充多边形
+        shapeArr,
+    );
+    // 把UV坐标范围控制在[0,1]范围
+
+    var pos = geometry.attributes.position; //顶点位置坐标
+    var uv = geometry.attributes.uv; //顶点UV坐标
+    var count = pos.count; //顶点数量
+    var xArr = []; //多边形polygon的所有x坐标
+    var yArr = []; //多边形polygon的所有y坐标
+    for (var i = 0; i < count; i++) {
+        xArr.push(pos.getX(i));
+        yArr.push(pos.getY(i));
+    }
+    // minMax()计算polygon所有坐标,返回的极大值、极小值
+    var [xMin, xMax] = minMax(xArr);
+    var [yMin, yMax] = minMax(yArr);
+    var xL = xMax - xMin;
+    var yL = yMax - yMin;
+    // 根据多边形顶点坐标与最小值差值占最大值百分比，设置UV坐标大小 把UV坐标范围控制在[0,1]范围
+    for (var i = 0; i < count; i++) {
+        var uvx = (pos.getX(i) - xMin) / xL;
+        var uvy = (pos.getY(i) - yMin) / yL;
+        uv.setXY(i, uvx, uvy)
+    }
+    console.log('控制台查看修改后的UV坐标', geometry.attributes.uv.array)
+
+    //   多边形坐标进行排序
+    function minMax(arr) {
+        // 数组元素排序
+        arr.sort(compareNum);
+        // 返回极小值和极大值
+        return [arr[0], arr[arr.length - 1]]
+    }
+    // 数组排序规则
+    function compareNum(num1, num2) {
+        if (num1 < num2) {
+            return -1;
+        } else if (num1 > num2) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+
+    var mesh = new THREE.Mesh(geometry, material); //网格模型对象
+    return mesh;
+}
+```
+
+
 
 ## 环境贴图
 
@@ -3040,7 +3216,7 @@ path3.lineTo(50,80);
 shape.holes.push(path1,path2, path3);
 ```
 
-## 模型边界线
+## 模型边界线几何体
 
 先用`EdgesGeometry`重新计算长方体几何体,返回一个新的几何体,然后用线模型`LineSegments`模型渲染新的几何体即可。
 
@@ -6460,6 +6636,28 @@ vec4前面三个参数是颜色RGB值，第四个参数是透明度值
 gl_FragColor = vec4(1.0,0.0,0.0,1.0);
 ```
 
+## 矩阵
+
+坐标与相对应的矩阵相乘，就是将坐标转换至相应的坐标系下
+
+例如：
+
+- 与世界矩阵matrixWorld相乘就是转换至世界坐标系下
+
+- 与视图矩阵viewMatrix相乘就是转换至相机坐标系下
+
+- 投影矩阵projectionMatrix相乘就是转换至投影坐标系下
+
+- 顶点法线normal与法线矩阵normalMatrix相乘转换至相机坐标系下
+
+  - 法线矩阵normalMatrix是通过模型的模型矩阵和视图矩阵变换而来
+
+  - ```js
+    normalMatrix = transpose(inverse(mat3(modelViewMatrix)));
+    ```
+
+    
+
 ## ShaderMaterial着色器材质
 
 Shader材质类`ShaderMaterial`，单词`Shader`就是着色器的意思，`ShaderMaterial`是通过==着色器GLSL ES语言==自定义材质效果，比如颜色
@@ -6692,6 +6890,23 @@ threejs内部还提供了两个内置的矩阵变量，
 视图矩阵`viewMatrix`和投影矩阵`projectionMatrix`因为是内置变量，同样不用声明就可以直接使用。
 
 通过`viewMatrix`和`projectionMatrix`来表示相机对场景模型的旋转、缩放、平移变换。
+
+**解析**：
+
+- 将顶点从模型空间（物体自身的局部坐标系）转换到世界空间（整个场景的全局坐标系），
+
+- 将顶点从世界空间转换到视图空间（相机坐标系），
+
+- 最后投影矩阵用于将顶点从视图空间转换到裁剪空间【去掉不用显示的部分】
+
+- ```js
+  顶点 v = [1, 0, 0, 1]（列向量形式）
+  模型矩阵 M_model
+  视图矩阵 M_view
+  投影矩阵 M_proj
+  如果按照正确顺序 M_proj * M_view * M_model * v 进行计算：
+  v3 = M_proj * M_view * M_model * v
+  ```
 
 ```js
 const vertexShader = `
@@ -7655,6 +7870,111 @@ mix( vec3(1.0,1.0,1.0),gl_FragColor.rgb, per);
 mix( vec3(0.3,1.0,1.0),gl_FragColor.rgb, per);
 ```
 
+## 波动光环
+
+版本不同需要替换的文件以及改写的代码都不同
+
+```js
+export default /* glsl */ `
+#ifdef OPAQUE
+diffuseColor.a = 1.0;
+#endif
+
+// https://github.com/mrdoob/three.js/pull/22425
+#ifdef USE_TRANSMISSION
+diffuseColor.a *= transmissionAlpha + 0.1;
+#endif
+
+
+
+float r0 = 10.0+time*1200.0;
+float w = 100.0;//光环宽度一半，单位米
+vec2 center = vec2(13524782.0,3664189.75);//几何中心坐标坐标
+float L = distance(vPosition.xy,center);//距离圆心距离center
+if(L > r0 && L < r0+2.0*w){
+    // 渐变色光带
+    float per = 0.0;
+    if(L<r0+w){
+        per = (L-r0)/w;
+        outgoingLight = mix( outgoingLight, vec3(1.0,1.0,1.0),per);
+    }else{
+        per = (L-r0-w)/w;
+        outgoingLight = mix( vec3(1.0,1.0,1.0),outgoingLight,per);
+    }
+}
+gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+
+`;
+```
+
+
+
+## 注意
+
+在对一部分坐标顶点数据进行修改时，最好是找到对应修改的内容文件，将其复制下来，不然可能出现意外的bug，比如：【下方代码会导致模型不受雾化影响，反射光能力变弱】
+
+```
+shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <opaque_fragment>',
+    `
+     #include <dithering_fragment>
+     //线性渐变
+    // vec3 gradient = mix(vec3(0.0,0.1,0.1), vec3(0.0,1.0,1.0), vPosition.z/354.0));
+    // 非线性渐变  小部分楼层太高，不同高度矮楼层颜色对比不明显,可以采用非线性渐变方式调节
+     vec3 gradient = mix(vec3(0.0,0.1,0.1), vec3(0.0,1.0,1.0), sqrt(vPosition.z/354.0));
+     outgoingLight = outgoingLight*gradient;
+     gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+     `
+);
+```
+
+解决方式：找到相关文件，复制并进行修改，例如找到`output_fragment.glsl.js`文件，复制修改
+
+```js
+export default /* glsl */`
+#ifdef OPAQUE
+diffuseColor.a = 1.0;
+#endif
+
+#ifdef USE_TRANSMISSION
+diffuseColor.a *= material.transmissionAlpha;
+#endif
+
+// 楼高范围[0,354]
+// 线性渐变
+// vec3 gradient = mix(vec3(0.0,0.1,0.1), vec3(0.0,1.0,1.0), vPosition.z/354.0);
+
+// 非线性渐变  小部分楼层太高，不同高度矮楼层颜色对比不明显,可以采用非线性渐变方式调节
+vec3 gradient = mix(vec3(0.0,0.1,0.1), vec3(0.0,1.0,1.0), sqrt(vPosition.z/354.0));
+
+// 在光照影响明暗的基础上，设置渐变   (避免模型材质color属性影响渐变色，设置为默认的纯白色即可)
+outgoingLight = outgoingLight*gradient;
+gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+
+// 不考虑漫反射材质光照计算的影响 不同面没有明暗变化  没有棱角感
+// gl_FragColor = vec4( gradient, 1.0);
+`;
+```
+
+这里老版本为文件`output_fragment.glsl.js`:
+
+```js
+export default /* glsl */`
+#ifdef OPAQUE
+diffuseColor.a = 1.0;
+#endif
+
+// https://github.com/mrdoob/three.js/pull/22425
+#ifdef USE_TRANSMISSION
+diffuseColor.a *= transmissionAlpha + 0.1;
+#endif
+
+gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+`;
+```
+
+
+
 # 补充
 
 ## 地球经纬度
@@ -7829,4 +8149,6 @@ export function getPositionJson() {
 
 }
 ```
+
+
 

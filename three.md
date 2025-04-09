@@ -3483,7 +3483,7 @@ composer. addPass(smaaPass);
 
 
 
-# 辅助
+# 辅助库&补充内容
 
 ## 性能监视器（stats）
 
@@ -3639,7 +3639,36 @@ npm install delaunator
 
 ## 性能优化
 
-对于一部分大量的计算数据【比如点阵的生成、经纬度的转换，判断是否在轮廓内等等】，如果是静态数据，可以在第一次完成后，将其计算的结果保存到本地，之后直接去读取节省计算机的计算资源
+- 对于一部分大量的计算数据【比如点阵的生成、经纬度的转换，判断是否在轮廓内等等】，如果是静态数据，可以在第一次完成后，将其计算的结果保存到本地，之后直接去读取节省计算机的计算资源
+
+
+- 将大量的几何体进行合并
+
+- 模型通过draco进行压缩，减少加载时间
+
+  - ```js
+    //安装gltf-pipeline工具
+    npm install -g gltf-pipeline
+    
+    //使用:需要先进入模型的文件目录
+    //gltf模型压缩为Draco GLTF模型
+    gltf-pipeline -i 需压缩模型.gltf -o Draco压缩后模型.gltf -d
+    
+    //gltf模型压缩为Draco GLTF模型
+    gltf-pipeline -i 上海o.06.glb -o draco上海0.06.glb -d
+    
+    //注意：压缩过的模型。必须使用相应库进行解码后才可以加载
+    import { //draco压缩后模型解析的扩展库DRACOLoader
+    }from './three.js-r133/examples/jsm/loaders /DRACOLoader.js';
+    var dracoLoader = new DRACOLoader();
+    //设置Draco解码器文件所在目录，这个需要自己去找，是解码器的相关依赖
+    dracoLoader.setDecoderPath('./../ ../ ../three.js-r133/examples/js/libs/draco/gltf/')
+    var loader = new GLTFLoader();//创建一个GLTF加载器
+    // DRACOLoader:给gltf加载器设置drc文件(Draco压缩文件)加载功能
+    loader.setDRACOLoader(dracoLoader);
+    ```
+
+    
 
 ## 经纬度转墨卡托坐标
 
@@ -4864,7 +4893,7 @@ npm i @tweenjs/tween.js@^18
 ```
 
 ```js
-import TWEEN from '@tweenjs/tween. js';
+import TWEEN from '@tweenjs/tween.js';
 ```
 
 .**html引入tween.js**：
@@ -4913,7 +4942,7 @@ three.js模型的位置mesh. position属性是一个具有.x、.y、.z属性的�
 
 ```js
 //创建一段mesh平移的动画
-const tween = new TWEEN. Tween(mesh.position);
+const tween = new TWEEN.Tween(mesh.position);
 //经过2000毫秒,pos对象的x和y属性分别从零变化为100、50
 tween.to({x: 100,y: 50],2000);
 //tween动画开始执行
